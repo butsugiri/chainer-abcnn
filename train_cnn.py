@@ -11,7 +11,7 @@ from chainer.training import extensions
 import argparse
 
 from chainer import training
-from YoonCNN import YoonCNN, DataProcessor, concat_examples
+from ABCNN import BCNN, DataProcessor, concat_examples
 
 
 def main(args):
@@ -22,9 +22,11 @@ def main(args):
     dev_data = data_processor.dev_data
 
     vocab = data_processor.vocab
-    cnn = YoonCNN(n_vocab=len(vocab), input_channel=1,
-                  output_channel=10, n_label=2)
-    cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
+    target = data_processor.connective
+    cnn = BCNN(n_vocab=len(vocab), input_channel=1,
+                  output_channel=10, n_label=len(target)) # ABCNNはoutput = 50固定らしいが．
+    if args.glove:
+        cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     model = L.Classifier(cnn)
     if args.gpu >= 0:
         model.to_gpu()
@@ -62,9 +64,11 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', dest='epoch', type=int,
                         default=5, help='number of epochs to learn')
     parser.add_argument('--batchsize', dest='batchsize', type=int,
-                        default=32, help='learning minibatch size')
-    parser.add_argument('--glove', dest='glove_path', type=str,
+                        default=3, help='learning minibatch size')
+    parser.add_argument('--glove_path', dest='glove_path', type=str,
                         default="../../disco_parse/data/glove_model/glove.6B.100d.txt", help='Pretrained glove vector')
+    # parser.add_argument('--glove', action='store_true', help='use GloVe vector?')
+    parser.set_defaults(glove=False)
     parser.add_argument('--test', action='store_true', help='use tiny dataset')
     parser.set_defaults(test=False)
 

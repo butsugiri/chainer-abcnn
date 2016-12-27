@@ -8,17 +8,15 @@ from chainer import cuda, Function, Variable
 from chainer import Link, Chain
 
 
-class YoonCNN(Chain):
+class BCNN(Chain):
 
     def __init__(self, n_vocab, input_channel, output_channel, n_label, train=True):
-        super(YoonCNN, self).__init__(
-            embed=L.EmbedID(n_vocab, 100),  # 100: embedding vector size
-            conv3=L.Convolution2D(
-                input_channel, output_channel, (3, 100)),
-            conv4=L.Convolution2D(
-                input_channel, output_channel, (4, 100)),
-            conv5=L.Convolution2D(
-                input_channel, output_channel, (5, 100)),
+        super(BCNN, self).__init__(
+            embed=L.EmbedID(n_vocab, 10),  # 100: embedding vector size
+            conv1=L.Convolution2D(
+                input_channel, output_channel, (4, 10), pad=3),
+            conv2=L.Convolution2D(
+                input_channel, output_channel, (4, 10)),
             l1=L.Linear(3 * output_channel, n_label)
         )
         self.train = train
@@ -35,16 +33,28 @@ class YoonCNN(Chain):
                     self.embed.W.data[vocab[word]] = vec
         sys.stderr.write("done\n")
 
-    def __call__(self, xs):
-        xs = self.embed(xs)
+    def __call__(self, x1s, x2s):
+        enc1 = self.encode_sequence(x1s)
+        exit()
+        # enc2 = self.encode_sequence(x2s)
+        # exit()
+
         batchsize, height, width = xs.shape
         xs = F.reshape(xs, (batchsize, 1, height, width))
-        conv3_xs = self.conv3(xs)
-        conv4_xs = self.conv4(xs)
-        conv5_xs = self.conv5(xs)
+        conv = self.conv4(xs)
         h1 = F.max_pooling_2d(F.relu(conv3_xs), conv3_xs.shape[2])
         h2 = F.max_pooling_2d(F.relu(conv4_xs), conv4_xs.shape[2])
         h3 = F.max_pooling_2d(F.relu(conv5_xs), conv5_xs.shape[2])
         concat_layer = F.concat([h1, h2, h3], axis=1)
         y = self.l1(F.dropout(concat_layer, train=self.train))
         return y
+
+    def encode_sequence(self, xs):
+        xs = self.embed(xs)
+        batchsize, height, width = xs.shape
+        xs = F.reshape(xs, (batchsize, 1, height, width))
+        conv = self.conv1(xs)
+        print(conv.data)
+        print(xs.shape)
+        print(conv.shape)
+        pass

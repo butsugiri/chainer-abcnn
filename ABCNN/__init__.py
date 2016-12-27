@@ -1,4 +1,4 @@
 # -*- coding: utf-8 -*-
 from .DataProcessor import DataProcessor
-from .YoonCNN import YoonCNN
+from .BCNN import BCNN
 from .util import concat_examples
