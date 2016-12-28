@@ -30,7 +30,7 @@ class DataProcessor(object):
             sys.stderr.write("...preparing tiny dataset for quick test...")
             self.train_data = self.train_data[:100]
             self.dev_data = self.dev_data[:10]
-            self.test_data = self.test_data[:10]
+            # self.test_data = self.test_data[:10]
         sys.stderr.write("done.\n")
 
     def load_dataset(self, _type):

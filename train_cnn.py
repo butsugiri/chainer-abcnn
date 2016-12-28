@@ -24,7 +24,7 @@ def main(args):
     vocab = data_processor.vocab
     target = data_processor.connective
     cnn = BCNN(n_vocab=len(vocab), input_channel=1,
-                  output_channel=10, n_label=len(target)) # ABCNNはoutput = 50固定らしいが．
+                  output_channel=50, n_label=len(target)) # ABCNNはoutput = 50固定らしいが．
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     model = L.Classifier(cnn)
