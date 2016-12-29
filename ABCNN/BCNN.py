@@ -47,7 +47,7 @@ class BCNN(Chain):
         embed_xs = F.reshape(embed_xs, (batchsize, 1, height, width))
         xs_conv1 = F.tanh(self.conv1(embed_xs))
         # (batchsize, depth, width, height)
-        xs_all_avg_2 = F.average_pooling_2d(xs_conv1, ksize=(xs_conv1.shape[2], 1))
+        xs_all_avg_2 = F.average_pooling_2d(xs_conv1, ksize=(xs_conv1.shape[2], 1), use_cudnn=False)
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3) # (3, 50, 20, 1) --> (3, 1, 20, 50)
 
         # 2. average_pooling with window
