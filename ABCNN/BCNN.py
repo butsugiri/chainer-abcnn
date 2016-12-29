@@ -51,7 +51,7 @@ class BCNN(Chain):
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3) # (3, 50, 20, 1) --> (3, 1, 20, 50)
 
         # 2. average_pooling with window
-        xs_avg = F.average_pooling_2d(xs_conv1_swap, ksize=(4, 1), stride=1)
+        xs_avg = F.average_pooling_2d(xs_conv1_swap, ksize=(4, 1), stride=1, use_cudnn=False)
         assert xs_avg.shape[2] == seq_length # average pooling語に系列長が元に戻ってないといけない
 
         # 3. wide_convolution
