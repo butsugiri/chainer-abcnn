@@ -37,7 +37,7 @@ class BCNN(Chain):
         enc1 = self.encode_sequence(x1s)
         enc2 = self.encode_sequence(x2s)
         concat = F.concat([enc1, enc2], axis=1)
-        return F.tanh(self.l1(concat))
+        return self.l1(concat)
 
     def encode_sequence(self, xs):
         seq_length = xs.shape[1]
