@@ -9,7 +9,7 @@ from chainer import Link, Chain
 
 
 class BCNN(Chain):
-    
+
     def __init__(self, n_vocab, input_channel, output_channel, n_label, train=True):
         super(BCNN, self).__init__(
             embed=L.EmbedID(n_vocab, 100),  # 100: word-embedding vector size
@@ -23,6 +23,7 @@ class BCNN(Chain):
             l1=L.Linear(4 * 50, n_label)
         )
         self.train = train
+        #TODO; batchnormにこれを引数として追加する
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
