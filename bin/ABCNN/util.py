@@ -3,7 +3,12 @@ import numpy as np
 import numpy
 import six
 
+import chainer
 from chainer import cuda
+from chainer import cuda, Function, gradient_check, Variable, optimizers, serializers, utils
+from chainer import Link, Chain, ChainList
+import chainer.functions as F
+import chainer.links as L
 
 
 # basically this is same as the one on chainer's repo.
@@ -59,3 +64,12 @@ def _concat_arrays_with_padding(arrays, padding):
             slices = tuple(slice(dim) for dim in src.shape)
             result[(i,) + slices] = src
     return result
+
+def cos_sim(x, y):
+    """
+    Variableを2つ受け取ってcosine類似度を返す関数
+    Chainerにはない．
+    """
+    norm_x = F.normalize(F.squeeze(x, axis=(2,3)))
+    norm_y = F.normalize(F.squeeze(y, axis=(2,3)))
+    return F.batch_matmul(norm_x, norm_y, transa=True)

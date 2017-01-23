@@ -24,8 +24,8 @@ def main(fi):
             'document_id': document_id,
             'sentence_id': sentence_id,
             'title': title,
-            'question': question,
-            'answer': answer,
+            'question': question.lower().split(" "),
+            'answer': answer.lower().split(" "),
             'label': label
         }
 

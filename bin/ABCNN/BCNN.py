@@ -6,18 +6,18 @@ import chainer.links as L
 import numpy as np
 from chainer import cuda, Function, Variable
 from chainer import Link, Chain
-
+from .util import cos_sim
 
 class BCNN(Chain):
 
-    def __init__(self, n_vocab, input_channel, output_channel, n_label, train=True):
+    def __init__(self, n_vocab, embed_dim, input_channel, output_channel, train=True):
         super(BCNN, self).__init__(
-            embed=L.EmbedID(n_vocab, 100),  # 100: word-embedding vector size
+            embed=L.EmbedID(n_vocab, embed_dim),  # 100: word-embedding vector size
             conv1=L.Convolution2D(
-                input_channel, output_channel, (4, 100), pad=(3,0)),
+                input_channel, output_channel, (4, embed_dim), pad=(3,0)),
             conv2=L.Convolution2D(
                 input_channel, output_channel, (4, 50), pad=(3,0)),
-            l1=L.Linear(4 * 50, n_label)
+            l1=L.Linear(in_size=1, out_size=1)
         )
         self.train = train
 
@@ -36,8 +36,7 @@ class BCNN(Chain):
     def __call__(self, x1s, x2s):
         enc1 = self.encode_sequence(x1s)
         enc2 = self.encode_sequence(x2s)
-        concat = F.concat([enc1, enc2], axis=1)
-        return self.l1(concat)
+        return F.squeeze(self.l1(cos_sim(enc1, enc2)), axis=1)
 
     def encode_sequence(self, xs):
         seq_length = xs.shape[1]
@@ -48,11 +47,11 @@ class BCNN(Chain):
         xs_conv1 = F.tanh(self.conv1(embed_xs))
         # (batchsize, depth, width, height)
         xs_all_avg_2 = F.average_pooling_2d(xs_conv1, ksize=(xs_conv1.shape[2], 1))
-        xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3) # (3, 50, 20, 1) --> (3, 1, 20, 50)
+        xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3)  # (3, 50, 20, 1) --> (3, 1, 20, 50)
 
         # 2. average_pooling with window
         xs_avg = F.average_pooling_2d(xs_conv1_swap, ksize=(4, 1), stride=1, use_cudnn=False)
-        assert xs_avg.shape[2] == seq_length # average pooling語に系列長が元に戻ってないといけない
+        assert xs_avg.shape[2] == seq_length  # average pooling語に系列長が元に戻ってないといけない
 
         # 3. wide_convolution
         xs_conv2 = F.tanh(self.conv2(xs_avg))
