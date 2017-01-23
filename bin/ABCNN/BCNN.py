@@ -4,7 +4,7 @@ import chainer
 import chainer.functions as F
 import chainer.links as L
 import numpy as np
-from chainer import cuda, Function, Variable
+from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
 from .util import cos_sim
 

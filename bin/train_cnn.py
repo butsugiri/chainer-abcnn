@@ -1,18 +1,20 @@
 # coding: utf-8
 import numpy as np
-from collections import defaultdict
-import six
 import sys
+import argparse
+import copy
+from collections import defaultdict
+from sklearn.metrics import average_precision_score
+
 import chainer
+from chainer import reporter, training
 import chainer.links as L
 import chainer.optimizers as O
 import chainer.functions as F
 from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
-import argparse
 
-from chainer import training
-from ABCNN import BCNN, DataProcessor, concat_examples
+from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator
 
 
 def main(args):
@@ -24,41 +26,39 @@ def main(args):
     vocab = data_processor.vocab
     embed_dim = args.dim
     cnn = BCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1,
-                  output_channel=50) # ABCNNはoutput = 50固定らしいが．
+               output_channel=50)  # ABCNNはoutput = 50固定らしいが．
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
-    model = L.Classifier(cnn, lossfun=sigmoid_cross_entropy, accfun=binary_accuracy)
+    model = L.Classifier(cnn, lossfun=sigmoid_cross_entropy,
+                         accfun=binary_accuracy)
     if args.gpu >= 0:
         model.to_gpu()
     optimizer = O.Adam()
     optimizer.setup(model)
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
-    dev_iter = chainer.iterators.SerialIterator(dev_data, args.batchsize,
-                                                repeat=False, shuffle=False)
+    dev_iter = DevIterator(dev_data, data_processor.n_dev)
     updater = training.StandardUpdater(
         train_iter, optimizer, converter=concat_examples, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'))
 
     # Evaluation
-    eval_model = model.copy()
-    eval_model.predictor.train = False
-    trainer.extend(extensions.Evaluator(
-        dev_iter, eval_model, device=args.gpu, converter=concat_examples))
+    eval_predictor = model.copy().predictor
+    trainer.extend(WikiQAEvaluator(
+        dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
 
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss', 'validation/main/loss',
-         'main/accuracy', 'validation/main/accuracy']))
+        ['epoch', 'main/loss', 'validation/main/loss', 'validation/main/average_precision', 'validation/main/reciprocal_rank']))
     trainer.extend(extensions.ProgressBar(update_interval=10))
     # take a shapshot when the model achieves highest accuracy in dev set
-    trainer.extend(extensions.snapshot_object(
-        model, 'model_epoch_{.updater.epoch}',
-        trigger=chainer.training.triggers.MaxValueTrigger('validation/main/accuracy')))
+    # trainer.extend(extensions.snapshot_object(
+    #     model, 'model_epoch_{.updater.epoch}',
+    #     trigger=chainer.training.triggers.MaxValueTrigger('validation/main/average_precision')))
     trainer.run()
 
 if __name__ == '__main__':
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('--gpu  ', dest='gpu', type=int,
                         default=-1, help='negative value indicates CPU')
     parser.add_argument('--epoch', dest='epoch', type=int,
@@ -76,6 +76,5 @@ if __name__ == '__main__':
     parser.add_argument('--test', action='store_true', help='use tiny dataset')
     parser.set_defaults(test=False)
 
-
-    args=parser.parse_args()
+    args = parser.parse_args()
     main(args)

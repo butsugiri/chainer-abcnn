@@ -5,6 +5,7 @@ import json
 import numpy as np
 from chainer import cuda
 from collections import defaultdict
+from itertools import groupby
 
 
 class DataProcessor(object):
@@ -24,12 +25,12 @@ class DataProcessor(object):
     def prepare_dataset(self):
         # load train/dev/test data
         sys.stderr.write("loading dataset...")
-        self.train_data = self.load_dataset("train")
-        self.dev_data = self.load_dataset("dev")
+        self.train_data, self.n_train = self.load_dataset("train")
+        self.dev_data, self.n_dev = self.load_dataset("dev")
         if self.test:
             sys.stderr.write("...preparing tiny dataset for quick test...")
             self.train_data = self.train_data[:100]
-            self.dev_data = self.dev_data[:10]
+            self.dev_data = self.dev_data[:100]
             # self.test_data = self.test_data[:10]
         sys.stderr.write("done.\n")
 
@@ -42,11 +43,17 @@ class DataProcessor(object):
             path = self.test_data_path
 
         dataset = []
+        question_ids = []
         with open(path, "r") as input_data:
             for line in input_data:
                 data = json.loads(line)
                 y = np.array(data["label"], dtype=np.int32)
                 x1s = np.array([self.vocab[token] for token in data["question"]], dtype=np.int32)
                 x2s = np.array([self.vocab[token] for token in data["answer"]], dtype=np.int32)
+                question_ids.append(data['question_id'])
                 dataset.append((x1s, x2s, y))
-        return dataset
+
+        # Number of Question-Answer Pair for each question.
+        # This is needed for validation, when calculating MRR and MAP
+        qa_pairs = [len(list(section)) for _, section in groupby(question_ids)]
+        return dataset, qa_pairs

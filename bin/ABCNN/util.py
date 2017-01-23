@@ -4,7 +4,6 @@ import numpy
 import six
 
 import chainer
-from chainer import cuda
 from chainer import cuda, Function, gradient_check, Variable, optimizers, serializers, utils
 from chainer import Link, Chain, ChainList
 import chainer.functions as F
