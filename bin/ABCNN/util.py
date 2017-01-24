@@ -11,7 +11,7 @@ import chainer.links as L
 
 
 # basically this is same as the one on chainer's repo.
-# I added padding option (paddin=0) to be always true
+# I added padding option (padding=0) to be always true
 def concat_examples(batch, device=None, padding=0):
     if len(batch) == 0:
         raise ValueError('batch is empty')
@@ -37,6 +37,16 @@ def concat_examples(batch, device=None, padding=0):
                 [example[i] for example in batch], padding[i])))
 
         return tuple(result)
+    elif isinstance(first_elem, dict):
+        result = {}
+        if not isinstance(padding, dict):
+            padding = {key: padding for key in first_elem}
+
+        for key in first_elem:
+            result[key] = to_device(_concat_arrays(
+                [example[key] for example in batch], padding[key]))
+
+        return result
 
 
 def _concat_arrays(arrays, padding):

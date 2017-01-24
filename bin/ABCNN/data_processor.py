@@ -3,7 +3,7 @@ import os
 import sys
 import json
 import numpy as np
-from chainer import cuda
+import pickle
 from collections import defaultdict
 from itertools import groupby
 
@@ -14,9 +14,11 @@ class DataProcessor(object):
         self.train_data_path = os.path.join(data_path, "train.json")
         self.dev_data_path = os.path.join(data_path, "dev.json")
         self.test_data_path = os.path.join(data_path, "test.json")
-        self.test = test # if true, provide tiny datasets for quick test
+        # conventional lexical features pkl used in [Yang+ 2015]
+        self.id2features = pickle.load(open("../work/features.pkl", "rb"))
+        self.test = test # if true, use tiny datasets for quick test
 
-        # Arg1/Arg2のボキャブラリ
+        # Vocabulary for sentence pairs
         self.vocab = defaultdict(lambda: len(self.vocab))
         self.vocab["<pad>"]
         # 予測先のconnective tokens
@@ -49,9 +51,13 @@ class DataProcessor(object):
                 data = json.loads(line)
                 y = np.array(data["label"], dtype=np.int32)
                 x1s = np.array([self.vocab[token] for token in data["question"]], dtype=np.int32)
-                x2s = np.array([self.vocab[token] for token in data["answer"]], dtype=np.int32)
+                x2s = np.array([self.vocab[token] for token in data["answer"]][:40], dtype=np.int32)  # truncate maximum 40 words
+                wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wordcnt']], dtype=np.float32)
+                wgt_wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wgt_wordcnt']], dtype=np.float32)
                 question_ids.append(data['question_id'])
-                dataset.append((x1s, x2s, y))
+                # this should be in dict for readability
+                # but it requires implementating L.Classifier by myself
+                dataset.append((x1s, x2s, wordcnt, wgt_wordcnt, y))
 
         # Number of Question-Answer Pair for each question.
         # This is needed for validation, when calculating MRR and MAP

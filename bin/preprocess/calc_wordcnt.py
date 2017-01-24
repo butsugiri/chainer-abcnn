@@ -20,7 +20,6 @@ def main(fi):
         wordcnt = len(common_nonstop_words)
         wgt_wordcnt = sum(word2idf[word] for word in common_nonstop_words if word in word2idf)
         id2wordcnt[(data['question_id'], data['sentence_id'])] = {"wordcnt": wordcnt, "wgt_wordcnt": wgt_wordcnt}
-    print(id2wordcnt)
     with open("../../work/features.pkl", "wb") as fo:
         pickle.dump(id2wordcnt, fo)
 

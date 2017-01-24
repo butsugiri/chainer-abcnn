@@ -49,7 +49,7 @@ def main(args):
 
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss', 'validation/main/loss', 'validation/main/average_precision', 'validation/main/reciprocal_rank']))
+        ['epoch', 'main/loss', 'validation/main/loss', 'validation/main/map', 'validation/main/mrr']))
     trainer.extend(extensions.ProgressBar(update_interval=10))
     # take a shapshot when the model achieves highest accuracy in dev set
     # trainer.extend(extensions.snapshot_object(

@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-validationに使うIterator
-"""
 import sys
 import numpy as np
 import chainer
@@ -12,13 +9,18 @@ import chainer.links as L
 from chainer.iterators import SerialIterator
 
 class DevIterator(SerialIterator):
+    """
+    This iterator is for validation.
+    In order to compute MAP and MRR, this iterator
+    yields minibatch which contains one question, all answer candidates
+    """
     def __init__(self, dataset, n_pair):
         self.dataset = dataset
         self._order = None
         self.current_position = 0
         self.epoch = 0
         self.is_new_epoch = False
-        self.n_pair = n_pair
+        self.n_pair = n_pair # number of answers contained in each question
         self.n = 0
 
     def __next__(self):
