@@ -70,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--data',  type=str,
                         default='../data/WikiQACorpus', help='path to data file')
     parser.add_argument('--dim',  type=int,
-                        default=10, help='embedi dimension')
+                        default=10, help='embed dimension')
     # parser.add_argument('--glove', action='store_true', help='use GloVe vector?')
     parser.set_defaults(glove=False)
     parser.add_argument('--test', action='store_true', help='use tiny dataset')
