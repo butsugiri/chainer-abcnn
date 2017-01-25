@@ -97,7 +97,7 @@ def debug_print(v):
         print(v.shape)
 
 class SelectiveWeightDecay(object):
-    name = 'WeightDecay'
+    name = 'SelectiveWeightDecay'
 
     def __init__(self, rate, decay_params):
         self.rate = rate

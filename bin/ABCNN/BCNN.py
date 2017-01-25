@@ -23,7 +23,7 @@ class BCNN(Chain):
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
-        sys.stderr.write("loading GloVe vector...")
+        print("loading GloVe vector...", end='', flush=True, file=sys.stderr)
         with open(glove_path, "r") as fi:
             for line in fi:
                 line_list = line.strip().split(" ")
@@ -31,11 +31,11 @@ class BCNN(Chain):
                 if word in vocab:
                     vec = self.xp.array(line_list[1::], dtype=np.float32)
                     self.embed.W.data[vocab[word]] = vec
-        sys.stderr.write("done\n")
+        print("done", flush=True, file=sys.stderr)
 
     def load_word2vec_embeddings(self, word2vec_path, vocab):
         assert self.embed != None
-        sys.stderr.write("loading word2vec vector...")
+        print("loading word2vec vector...", end='', flush=True, file=sys.stderr)
         with open(word2vec_path, "r") as fi:
             for n, line in enumerate(fi):
                 # 1st line contains stats
@@ -46,14 +46,19 @@ class BCNN(Chain):
                 if word in vocab:
                     vec = self.xp.array(line.strip().split(" ")[1::], dtype=np.float32)
                     self.embed.W.data[vocab[word]] = vec
-        sys.stderr.write("done\n")
+        print("done", flush=True, file=sys.stderr)
 
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
         enc1 = self.encode_sequence(x1s)
         enc2 = self.encode_sequence(x2s)
         similarity_score = F.squeeze(cos_sim(enc1, enc2), axis=2)
         feature_vec = F.concat([similarity_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
-        return F.squeeze(self.l1(feature_vec), axis=1)
+        fc = F.squeeze(self.l1(feature_vec), axis=1)
+        if self.train:
+            return fc
+        else:
+            return fc, similarity_score
+
 
     def encode_sequence(self, xs):
         seq_length = xs.shape[1]
