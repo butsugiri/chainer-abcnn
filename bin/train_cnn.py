@@ -51,8 +51,8 @@ def main(args):
 
     # setup evaluation
     eval_predictor = model.copy().predictor
-    # trainer.extend(WikiQAEvaluator(
-        # dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
+    trainer.extend(WikiQAEvaluator(
+        dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
 
     # extentions...
     trainer.extend(extensions.LogReport())
