@@ -19,7 +19,7 @@ from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvalu
 
 def main(args):
     # load data
-    data_processor = DataProcessor(args.data, args.test)
+    data_processor = DataProcessor(args.data, args.vocab, args.test)
     data_processor.prepare_dataset()
     train_data = data_processor.train_data
     dev_data = data_processor.dev_data
@@ -93,6 +93,8 @@ if __name__ == '__main__':
     parser.set_defaults(test=False)
     parser.add_argument('--decay',  type=float,
                         default=0.0002, help='Weight decay rate')
+    parser.add_argument('--vocab',  type=str,
+                        default="../work/word2vec_vocab.txt", help='Vocabulary file')
 
     args = parser.parse_args()
 

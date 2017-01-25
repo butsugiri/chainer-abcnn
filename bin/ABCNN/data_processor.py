@@ -10,7 +10,7 @@ from itertools import groupby
 
 class DataProcessor(object):
 
-    def __init__(self, data_path, test):
+    def __init__(self, data_path, vocab_path, test):
         self.train_data_path = os.path.join(data_path, "train.json")
         self.dev_data_path = os.path.join(data_path, "dev.json")
         self.test_data_path = os.path.join(data_path, "test.json")
@@ -19,8 +19,11 @@ class DataProcessor(object):
         self.test = test # if true, use tiny datasets for quick test
 
         # Vocabulary for sentence pairs
+        # word2vec vocabulary: vocab outside this will be considered as <unk>
+        self.word2vec_vocab = {w.strip():1 for w in open(vocab_path, 'r')}
         self.vocab = defaultdict(lambda: len(self.vocab))
         self.vocab["<pad>"]
+        self.vocab["<unk>"]
         # 予測先のconnective tokens
         # self.connective = defaultdict(lambda: len(self.connective))
 
@@ -50,8 +53,8 @@ class DataProcessor(object):
             for line in input_data:
                 data = json.loads(line)
                 y = np.array(data["label"], dtype=np.int32)
-                x1s = np.array([self.vocab[token] for token in data["question"]], dtype=np.int32)
-                x2s = np.array([self.vocab[token] for token in data["answer"]][:40], dtype=np.int32)  # truncate maximum 40 words
+                x1s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["question"]], dtype=np.int32)
+                x2s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["answer"] ][:40], dtype=np.int32)  # truncate maximum 40 words
                 wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wordcnt']], dtype=np.float32)
                 wgt_wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wgt_wordcnt']], dtype=np.float32)
                 question_ids.append(data['question_id'])
