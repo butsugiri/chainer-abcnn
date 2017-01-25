@@ -6,7 +6,7 @@ import chainer.links as L
 import numpy as np
 from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
-from .util import cos_sim
+from .util import cos_sim, debug_print
 
 class BCNN(Chain):
 
@@ -33,6 +33,21 @@ class BCNN(Chain):
                     self.embed.W.data[vocab[word]] = vec
         sys.stderr.write("done\n")
 
+    def load_word2vec_embeddings(self, word2vec_path, vocab):
+        assert self.embed != None
+        sys.stderr.write("loading word2vec vector...")
+        with open(word2vec_path, "r") as fi:
+            for n, line in enumerate(fi):
+                # 1st line contains stats
+                if n == 0:
+                    continue
+                line_list = line.strip().split(" ", 1)
+                word = line_list[0]
+                if word in vocab:
+                    vec = self.xp.array(line.strip().split(" ")[1::], dtype=np.float32)
+                    self.embed.W.data[vocab[word]] = vec
+        sys.stderr.write("done\n")
+
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt):
         enc1 = self.encode_sequence(x1s)
         enc2 = self.encode_sequence(x2s)
@@ -44,11 +59,12 @@ class BCNN(Chain):
         seq_length = xs.shape[1]
         # 1. wide_convolution
         embed_xs = self.embed(xs)
+
         batchsize, height, width = embed_xs.shape
         embed_xs = F.reshape(embed_xs, (batchsize, 1, height, width))
+        embed_xs.unchain_backward()  # don't move word vector
         xs_conv1 = F.tanh(self.conv1(embed_xs))
         # (batchsize, depth, width, height)
-        xs_all_avg_2 = F.average_pooling_2d(xs_conv1, ksize=(xs_conv1.shape[2], 1))
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3)  # (3, 50, 20, 1) --> (3, 1, 20, 50)
 
         # 2. average_pooling with window

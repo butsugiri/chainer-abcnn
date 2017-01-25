@@ -18,11 +18,13 @@ from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvalu
 
 
 def main(args):
+    # load data
     data_processor = DataProcessor(args.data, args.test)
     data_processor.prepare_dataset()
     train_data = data_processor.train_data
     dev_data = data_processor.dev_data
 
+    # create model
     vocab = data_processor.vocab
     embed_dim = args.dim
     cnn = BCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1,
@@ -33,8 +35,11 @@ def main(args):
                          accfun=binary_accuracy)
     if args.gpu >= 0:
         model.to_gpu()
+
+    # setup optimizer
     optimizer = O.Adam()
     optimizer.setup(model)
+    # optimizer.add_hook(chainer.optimizer.WeightDecay(rate=args.decay))
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
     dev_iter = DevIterator(dev_data, data_processor.n_dev)
@@ -42,11 +47,12 @@ def main(args):
         train_iter, optimizer, converter=concat_examples, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'))
 
-    # Evaluation
+    # setup evaluation
     eval_predictor = model.copy().predictor
-    trainer.extend(WikiQAEvaluator(
-        dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
+    # trainer.extend(WikiQAEvaluator(
+        # dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
 
+    # extentions...
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(
         ['epoch', 'main/loss', 'validation/main/loss', 'validation/main/map', 'validation/main/mrr']))
@@ -60,21 +66,32 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu  ', dest='gpu', type=int,
-                        default=-1, help='negative value indicates CPU')
+                        default=-1, help='GPU ID (Negative value indicates CPU)')
     parser.add_argument('--epoch', dest='epoch', type=int,
-                        default=5, help='number of epochs to learn')
+                        default=5, help='Number of times to iterate through the dataset')
     parser.add_argument('--batchsize', dest='batchsize', type=int,
-                        default=3, help='learning minibatch size')
-    parser.add_argument('--glove_path', dest='glove_path', type=str,
-                        default="../../disco_parse/data/glove_model/glove.6B.100d.txt", help='Pretrained glove vector')
+                        default=3, help='Minibatch size')
     parser.add_argument('--data',  type=str,
-                        default='../data/WikiQACorpus', help='path to data file')
+                        default='../data/WikiQACorpus', help='Path to input (train/dev/test) data file')
     parser.add_argument('--dim',  type=int,
                         default=10, help='embed dimension')
-    # parser.add_argument('--glove', action='store_true', help='use GloVe vector?')
+    parser.add_argument('--glove', action='store_true', help='Use GloVe vector?')
     parser.set_defaults(glove=False)
-    parser.add_argument('--test', action='store_true', help='use tiny dataset')
+    parser.add_argument('--glove-path', dest='glove_path', type=str,
+                        default="../../disco_parse/data/glove_model/glove.6B.100d.txt", help='Path to pretrained glove vector')
+
+    parser.add_argument('--word2vec', action='store_true', help='Use word2vec vector?')
+    parser.set_defaults(word2vec=False)
+    parser.add_argument('--word2vec-path', dest='word2vec_path', type=str,
+                        default="../../disco_parse/data/glove_model/glove.6B.100d.txt", help='Path to pretrained word2vec vector')
+
+    parser.add_argument('--test', action='store_true', help='Use tiny dataset for quick test')
     parser.set_defaults(test=False)
+    # parser.add_argument('--decay',  type=float,
+    #                     default=0.0002, help='Weight decay rate')
 
     args = parser.parse_args()
+
+    # can't use word2vec and glove at the same time
+    assert not (args.glove and args.word2vec)
     main(args)

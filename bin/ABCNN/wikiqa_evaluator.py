@@ -6,6 +6,7 @@ import chainer.functions as F
 from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
 import random
+import chainer
 
 def average_precision(y_true, y_score):
     """
@@ -36,6 +37,8 @@ class WikiQAEvaluator(extensions.Evaluator):
         summary = reporter.DictSummary()
         for batch in it:
             x1s, x2s, wordcnt, wgt_wordcnt, y = self.converter(batch)
+            x1s = chainer.Variable(x1s)
+            x2s = chainer.Variable(x2s)
             observation = {}
             with reporter.report_scope(observation):
                 # We evaluate WikiQA by MAP and MRR
