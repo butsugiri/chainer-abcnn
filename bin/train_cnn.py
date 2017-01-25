@@ -39,7 +39,7 @@ def main(args):
         model.to_gpu()
 
     # setup optimizer
-    optimizer = O.Adam()
+    optimizer = O.AdaGrad(lr=0.08)
     optimizer.setup(model)
     # do not use weight decay for embeddings
     decay_params = {name:1 for name, variable in model.namedparams() if "embed" not in name}

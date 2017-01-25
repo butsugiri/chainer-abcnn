@@ -17,7 +17,7 @@ class BCNN(Chain):
                 input_channel, output_channel, (4, embed_dim), pad=(3,0)),
             conv2=L.Convolution2D(
                 input_channel, output_channel, (4, 50), pad=(3,0)),
-            l1=L.Linear(in_size=1+2, out_size=1)  # 2 are from lexical features of WikiQA Task
+            l1=L.Linear(in_size=1+4, out_size=1)  # 4 are from lexical features of WikiQA Task
         )
         self.train = train
 
@@ -48,11 +48,11 @@ class BCNN(Chain):
                     self.embed.W.data[vocab[word]] = vec
         sys.stderr.write("done\n")
 
-    def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt):
+    def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
         enc1 = self.encode_sequence(x1s)
         enc2 = self.encode_sequence(x2s)
         similarity_score = F.squeeze(cos_sim(enc1, enc2), axis=2)
-        feature_vec = F.concat([similarity_score, wordcnt, wgt_wordcnt], axis=1)
+        feature_vec = F.concat([similarity_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         return F.squeeze(self.l1(feature_vec), axis=1)
 
     def encode_sequence(self, xs):
