@@ -95,3 +95,25 @@ def debug_print(v):
     else:
         print(v.data)
         print(v.shape)
+
+class SelectiveWeightDecay(object):
+    name = 'WeightDecay'
+
+    def __init__(self, rate, decay_params):
+        self.rate = rate
+        self.decay_params = decay_params
+
+    def kernel(self):
+        return cuda.elementwise(
+            'T p, T decay', 'T g', 'g += decay * p', 'weight_decay')
+
+    def __call__(self, opt):
+        rate = self.rate
+        for name, param in opt.target.namedparams():
+            if name in self.decay_params:
+                p, g = param.data, param.grad
+                with cuda.get_device(p) as dev:
+                    if int(dev) == -1:
+                        g += rate * p
+                    else:
+                        self.kernel()(p, rate, g)
