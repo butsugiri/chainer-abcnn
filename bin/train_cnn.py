@@ -46,6 +46,7 @@ def main(args):
     optimizer.add_hook(SelectiveWeightDecay(rate=args.decay, decay_params=decay_params))
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
+    dev_train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize, repeat=False)
     dev_iter = DevIterator(dev_data, data_processor.n_dev)
     updater = training.StandardUpdater(
         train_iter, optimizer, converter=concat_examples, device=args.gpu)
@@ -53,13 +54,15 @@ def main(args):
 
     # setup evaluation
     eval_predictor = model.copy().predictor
+    eval_predictor.train = False
+    iters = {"train": dev_train_iter, "dev": dev_iter}
     trainer.extend(WikiQAEvaluator(
-        dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
+        iters, eval_predictor, converter=concat_examples, device=args.gpu))
 
     # extentions...
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss', 'validation/main/loss', 'validation/main/map', 'validation/main/mrr']))
+        ['epoch', 'main/loss', 'validation/main/loss', 'validation/main/map', 'validation/main/mrr', 'validation/main/svm_map', 'validation/main/svm_mrr']))
     trainer.extend(extensions.ProgressBar(update_interval=10))
     # take a shapshot when the model achieves highest accuracy in dev set
     # trainer.extend(extensions.snapshot_object(

@@ -29,15 +29,15 @@ class DataProcessor(object):
 
     def prepare_dataset(self):
         # load train/dev/test data
-        sys.stderr.write("loading dataset...")
+        print("loading dataset...", end='', flush=True, file=sys.stderr)
         self.train_data, self.n_train = self.load_dataset("train")
         self.dev_data, self.n_dev = self.load_dataset("dev")
         if self.test:
-            sys.stderr.write("...preparing tiny dataset for quick test...")
+            print("...preparing tiny dataset for quick test...", end='', flush=True, file=sys.stderr)
             self.train_data = self.train_data[:100]
             self.dev_data = self.dev_data[:100]
             # self.test_data = self.test_data[:10]
-        sys.stderr.write("done.\n")
+        print("done", flush=True, file=sys.stderr)
 
     def load_dataset(self, _type):
         if _type == "train":
