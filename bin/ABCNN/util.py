@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import numpy
 import six
+from collections import namedtuple
 
 import chainer
 from chainer import cuda, Function, Variable, optimizers, serializers, utils
@@ -117,3 +118,33 @@ class SelectiveWeightDecay(object):
                         g += rate * p
                     else:
                         self.kernel()(p, rate, g)
+
+def compute_map_mrr(label_scores):
+    """
+    compute map and mrr
+    argument is: numpy array with true label and predicted score
+    """
+    ap_list = []
+    rr_list = []
+    for label_score in label_scores:
+        sort_order = label_score[:,1].argsort()[::-1]  #sort (label, score) array, following score from the model
+        sorted_labels = label_score[sort_order][:,0]  # split
+        sorted_scores = label_score[sort_order][:,1]  # split
+
+        # compute map
+        precision = 0
+        correct_label = 0
+        for n, (score, true) in enumerate(zip(sorted_scores, sorted_labels), start=1):
+            if true == 1:
+                correct_label += 1
+                precision += (correct_label * 1.0 / n)
+        ap = precision / correct_label
+        ap_list.append(ap)
+
+        # compute mrr
+        ranks = [n for n, array in enumerate(label_score[sort_order], start=1) if int(array[0]) == 1]
+        rr = (1.0 / ranks[0]) if ranks else 0.0
+        rr_list.append(rr)
+
+    Stats = namedtuple("Stats", ["map", "mrr"])
+    return Stats(map=np.mean(ap_list), mrr=np.mean(rr_list))
