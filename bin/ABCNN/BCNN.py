@@ -59,7 +59,6 @@ class BCNN(Chain):
         seq_length = xs.shape[1]
         # 1. wide_convolution
         embed_xs = self.embed(xs)
-
         batchsize, height, width = embed_xs.shape
         embed_xs = F.reshape(embed_xs, (batchsize, 1, height, width))
         embed_xs.unchain_backward()  # don't move word vector

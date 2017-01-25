@@ -14,7 +14,7 @@ import chainer.functions as F
 from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
 
-from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator
+from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator, SelectiveWeightDecay
 
 
 def main(args):
@@ -41,7 +41,9 @@ def main(args):
     # setup optimizer
     optimizer = O.Adam()
     optimizer.setup(model)
-    # optimizer.add_hook(chainer.optimizer.WeightDecay(rate=args.decay))
+    # do not use weight decay for embeddings
+    decay_params = {name:1 for name, variable in model.namedparams() if "embed" not in name}
+    optimizer.add_hook(SelectiveWeightDecay(rate=args.decay, decay_params=decay_params))
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
     dev_iter = DevIterator(dev_data, data_processor.n_dev)
@@ -51,8 +53,8 @@ def main(args):
 
     # setup evaluation
     eval_predictor = model.copy().predictor
-    # trainer.extend(WikiQAEvaluator(
-        # dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
+    trainer.extend(WikiQAEvaluator(
+        dev_iter, eval_predictor, converter=concat_examples, device=args.gpu))
 
     # extentions...
     trainer.extend(extensions.LogReport())
@@ -89,8 +91,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--test', action='store_true', help='Use tiny dataset for quick test')
     parser.set_defaults(test=False)
-    # parser.add_argument('--decay',  type=float,
-    #                     default=0.0002, help='Weight decay rate')
+    parser.add_argument('--decay',  type=float,
+                        default=0.0002, help='Weight decay rate')
 
     args = parser.parse_args()
 
