@@ -58,8 +58,7 @@ class WikiQAEvaluator(extensions.Evaluator):
                 label_score = np.vstack([y_score.data, y])
                 sorted_label_score = label_score[
                     ::, label_score[0, ].argsort()[::-1]]
-                ranks = [n for n, array in enumerate(sorted_label_score.T, start=1) if array[
-                    0] > 0 and int(array[1]) == 1]
+                ranks = [n for n, array in enumerate(sorted_label_score.T, start=1) if int(array[1]) == 1]
                 rr = (1.0 / ranks[0]) if ranks else 0.0
                 reporter.report({'mrr': rr}, target)
 
