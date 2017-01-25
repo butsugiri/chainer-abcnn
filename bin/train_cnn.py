@@ -31,6 +31,8 @@ def main(args):
                output_channel=50)  # ABCNNはoutput = 50固定らしいが．
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
+    if args.word2vec:
+        cnn.load_word2vec_embeddings(args.word2vec_path, data_processor.vocab)
     model = L.Classifier(cnn, lossfun=sigmoid_cross_entropy,
                          accfun=binary_accuracy)
     if args.gpu >= 0:
