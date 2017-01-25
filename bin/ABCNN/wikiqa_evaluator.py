@@ -36,13 +36,13 @@ class WikiQAEvaluator(extensions.Evaluator):
         it = copy.copy(iterator)
         summary = reporter.DictSummary()
         for batch in it:
-            x1s, x2s, wordcnt, wgt_wordcnt, y = self.converter(batch)
+            x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = self.converter(batch)
             x1s = chainer.Variable(x1s)
             x2s = chainer.Variable(x2s)
             observation = {}
             with reporter.report_scope(observation):
                 # We evaluate WikiQA by MAP and MRR
-                y_score = target(x1s, x2s, wordcnt, wgt_wordcnt)
+                y_score = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
 
                 # compute average precision
                 # do not use sklearn implementation

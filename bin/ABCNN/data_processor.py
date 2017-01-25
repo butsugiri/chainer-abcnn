@@ -55,12 +55,14 @@ class DataProcessor(object):
                 y = np.array(data["label"], dtype=np.int32)
                 x1s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["question"]], dtype=np.int32)
                 x2s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["answer"] ][:40], dtype=np.int32)  # truncate maximum 40 words
+                x1s_len = np.array([len(x1s)], dtype=np.float32)
+                x2s_len = np.array([len(x2s)], dtype=np.float32)
                 wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wordcnt']], dtype=np.float32)
                 wgt_wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wgt_wordcnt']], dtype=np.float32)
                 question_ids.append(data['question_id'])
                 # this should be in dict for readability
                 # but it requires implementating L.Classifier by myself
-                dataset.append((x1s, x2s, wordcnt, wgt_wordcnt, y))
+                dataset.append((x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y))
 
         # Number of Question-Answer Pair for each question.
         # This is needed for validation, when calculating MRR and MAP
