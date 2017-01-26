@@ -30,7 +30,7 @@ class BCNN(Chain):
                     input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 conv2=L.Convolution2D(
                     input_channel, output_channel, (4, 50), pad=(3,0)),
-                l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
+                l1=L.Linear(in_size=3+4, out_size=1)  # 4 are from lexical features of WikiQA Task
             )
 
 

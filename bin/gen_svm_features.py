@@ -16,7 +16,7 @@ import chainer.serializers as S
 from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
 
-from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator, SelectiveWeightDecay, compute_map_mrr
+from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator, SelectiveWeightDecay
 
 
 def main(config):
@@ -45,7 +45,7 @@ def main(config):
     # create model
     vocab = data_processor.vocab
     embed_dim = config["dim"]
-    cnn = BCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1, n_layer=config["layer"],
+    cnn = BCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1,
                output_channel=50)  # ABCNNはoutput = 50固定らしいが．
 
     if config['glove']:
@@ -63,21 +63,20 @@ def main(config):
     predictor.train = False
     predict_iter = DevIterator(data, n_pair)
 
-    label_scores = []
     for n, batch in enumerate(predict_iter):
         # match question_id and prediction
         assert q_id_pair[n][1] == len(batch)
         x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = concat_examples(batch)
-        y_score, sim_scores = predictor(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
-        label_score = np.c_[y, y_score.data]
-        label_scores.append(label_score)
-    stats = compute_map_mrr(label_scores=label_scores)
-    print("\nResults of direct evaluation from (A)BCNN")
-    print("MAP: {map}\tMRR: {mrr}".format(
-        map=stats.map,
-        mrr=stats.mrr
-    ))
-
+        y_score, similarity_score_b2, similarity_score_b3 = predictor(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
+        x = np.concatenate([similarity_score_b2.data, similarity_score_b3.data, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+        for xi, yi in zip(x, y):
+            features = "\t".join(str(w) for w in xi)
+            out = "{question_id}\t{y}\t{features}".format(
+                question_id=q_id_pair[n][0],
+                y=yi,
+                features=features)
+            print(out)
+        print()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
