@@ -77,6 +77,8 @@ def main(args):
     trainer.extend(extensions.snapshot_object(
         model, 'model_epoch_{.updater.epoch}',
         trigger=chainer.training.triggers.MaxValueTrigger('validation/main/map')))
+    trainer.extend(extensions.ExponentialShift("lr", 0.5, optimizer=optimizer),
+                   trigger=chainer.training.triggers.MaxValueTrigger("validation/main/map"))
     trainer.run()
 
 if __name__ == '__main__':
