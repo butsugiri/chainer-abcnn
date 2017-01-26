@@ -1,5 +1,5 @@
 # coding: utf-8
-import os
+# import os
 import json
 import sys
 import argparse
@@ -45,7 +45,7 @@ def main(args):
         model.to_gpu()
 
     # setup optimizer
-    optimizer = O.AdaGrad(lr=0.08)
+    optimizer = O.AdaGrad(args.lr)
     optimizer.setup(model)
     # do not use weight decay for embeddings
     decay_params = {name: 1 for name,
@@ -112,6 +112,8 @@ if __name__ == '__main__':
                         default=0.0002, help='Weight decay rate')
     parser.add_argument('--vocab',  type=str,
                         default="../work/word2vec_vocab.txt", help='Vocabulary file')
+    parser.add_argument('--lr',  type=float,
+                        default=0.08, help='Learning rate')
 
     args = parser.parse_args()
 
