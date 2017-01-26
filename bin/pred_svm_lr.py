@@ -2,7 +2,6 @@
 """
 use output from predict.py
 """
-import sys
 from itertools import groupby
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
