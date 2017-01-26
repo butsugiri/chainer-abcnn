@@ -10,18 +10,29 @@ from .util import cos_sim, debug_print
 
 class BCNN(Chain):
 
-    def __init__(self, n_vocab, embed_dim, input_channel, output_channel, train=True):
+    def __init__(self, n_vocab, n_layer, embed_dim, input_channel, output_channel, train=True):
+        self.train = train
+        self.n_layer = n_layer
         # initialize all embeddings by uniform sampling.
         # but they are replaced by word2vec afterwards (except unknown token)
-        super(BCNN, self).__init__(
-            embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
-            conv1=L.Convolution2D(
-                input_channel, output_channel, (4, embed_dim), pad=(3,0)),
-            conv2=L.Convolution2D(
-                input_channel, output_channel, (4, 50), pad=(3,0)),
-            l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
-        )
-        self.train = train
+        if self.n_layer == 1:
+            # 俺が今まで単層だと思ってたのは2層だったんだよ
+            super(BCNN, self).__init__(
+                embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+                conv1=L.Convolution2D(
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+                l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
+            )
+        elif self.n_layer == 2:
+            super(BCNN, self).__init__(
+                embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+                conv1=L.Convolution2D(
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+                conv2=L.Convolution2D(
+                    input_channel, output_channel, (4, 50), pad=(3,0)),
+                l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
+            )
+
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
@@ -51,19 +62,19 @@ class BCNN(Chain):
         print("done", flush=True, file=sys.stderr)
 
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
-        x1_avg_1, x1_avg_2 = self.encode_sequence(x1s)
-        x2_avg_1, x2_avg_2 = self.encode_sequence(x2s)
+        x1_vecs = self.encode_sequence(x1s)
+        x2_vecs = self.encode_sequence(x2s)
         # enc2 = self.encode_sequence(x2s)
 
         # similarity score for block 2 and 3 (block 1 is embedding layer)
-        similarity_score_b2 = F.squeeze(cos_sim(x1_avg_1, x2_avg_1), axis=2)
-        similarity_score_b3 = F.squeeze(cos_sim(x1_avg_2, x2_avg_2), axis=2)
-        feature_vec = F.concat([similarity_score_b2, similarity_score_b3, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+        sim_scores = [F.squeeze(cos_sim(v1, v2), axis=2) for v1, v2 in zip(x1_vecs, x2_vecs)]
+
+        feature_vec = F.concat(sim_scores + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         fc = F.squeeze(self.l1(feature_vec), axis=1)
         if self.train:
             return fc
         else:
-            return fc, similarity_score_b2, similarity_score_b3
+            return fc, sim_scores
 
 
     def encode_sequence(self, xs):
@@ -76,16 +87,16 @@ class BCNN(Chain):
         xs_conv1 = F.tanh(self.conv1(embed_xs))
         # (batchsize, depth, width, height)
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3)  # (3, 50, 20, 1) --> (3, 1, 20, 50)
-
         # 2. average_pooling with window
         xs_avg = F.average_pooling_2d(xs_conv1_swap, ksize=(4, 1), stride=1, use_cudnn=False)
         assert xs_avg.shape[2] == seq_length  # average pooling語に系列長が元に戻ってないといけない
 
-        # 3. wide_convolution
-        xs_conv2 = F.tanh(self.conv2(xs_avg))
-
-        # 4. all_average_pooling
-        xs_all_avg_1 = F.average_pooling_2d(xs_conv2, ksize=(xs_conv2.shape[2], 1))
-        xs_all_avg_2 = F.average_pooling_2d(xs_conv1, ksize=(xs_conv1.shape[2], 1))
-        # return F.concat([xs_all_avg_1, xs_all_avg_2], axis=1)
-        return xs_all_avg_1, xs_all_avg_2
+        embed_avg = F.average_pooling_2d(embed_xs, ksize=(embed_xs.shape[2], 1))
+        xs_avg_1 = F.average_pooling_2d(xs_avg, ksize=(xs_avg.shape[2], 1))
+        if self.n_layer == 1:
+            # print(cos_sim(embed_avg, xs_avg_1).debug_print())
+            return embed_avg, xs_avg_1
+        elif self.n_layer == 2:
+            xs_conv2 = F.tanh(self.conv2(xs_avg))
+            xs_avg_2 = F.average_pooling_2d(xs_conv2, ksize=(xs_conv2.shape[2], 1))
+            return embed_avg, xs_avg_1, xs_avg_2

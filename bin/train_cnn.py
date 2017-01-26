@@ -33,7 +33,7 @@ def main(args):
     # create model
     vocab = data_processor.vocab
     embed_dim = args.dim
-    cnn = BCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1,
+    cnn = BCNN(n_vocab=len(vocab), n_layer=args.layer, embed_dim=embed_dim, input_channel=1,
                output_channel=50)  # ABCNNはoutput = 50固定らしいが．
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
@@ -113,6 +113,8 @@ if __name__ == '__main__':
                         default="../work/word2vec_vocab.txt", help='Vocabulary file')
     parser.add_argument('--lr',  type=float,
                         default=0.08, help='Learning rate')
+    parser.add_argument('--layer',  type=int,
+                        default=1, help='Number of layers (conv-blocks)')
 
     args = parser.parse_args()
 

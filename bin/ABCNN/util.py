@@ -81,8 +81,8 @@ def cos_sim(x, y):
     Variableを2つ受け取ってcosine類似度を返す関数
     Chainerにはない
     """
-    norm_x = F.normalize(F.squeeze(x, axis=(2,3)))
-    norm_y = F.normalize(F.squeeze(y, axis=(2,3)))
+    norm_x = F.normalize(F.squeeze(x, axis=(1,2)))
+    norm_y = F.normalize(F.squeeze(y, axis=(1,2)))
     return F.batch_matmul(norm_x, norm_y, transa=True)
 
 def debug_print(v):

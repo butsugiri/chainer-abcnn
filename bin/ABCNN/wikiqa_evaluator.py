@@ -31,8 +31,8 @@ class WikiQAEvaluator(extensions.Evaluator):
         train_y = []
         for batch in it:
             x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = self.converter(batch)
-            y_score, similarity_score_b2, similarity_score_b3 = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
-            x = np.concatenate([similarity_score_b2.data, similarity_score_b3.data, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+            y_score, sim_scores = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
+            x = np.concatenate([x.data for x in sim_scores] + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
             train_X.append(x)
             train_y.append(y)
 
@@ -58,7 +58,7 @@ class WikiQAEvaluator(extensions.Evaluator):
             observation = {}
             with reporter.report_scope(observation):
                 x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = self.converter(batch)
-                y_score, similarity_score_b2, similarity_score_b3 = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
+                y_score, sim_scores = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
 
                 # compute loss
                 loss = F.sigmoid_cross_entropy(x=y_score, t=y).data
@@ -69,7 +69,7 @@ class WikiQAEvaluator(extensions.Evaluator):
                 label_score = np.c_[y, y_score.data]
                 label_scores.append(label_score)
                 # for SVM/LR
-                x = np.concatenate([similarity_score_b2.data, similarity_score_b3.data, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+                x = np.concatenate([x.data for x in sim_scores] + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
                 y_score = model.decision_function(x)
                 svm_label_score = np.c_[y, y_score]
                 svm_label_scores.append(svm_label_score)
