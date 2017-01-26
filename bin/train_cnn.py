@@ -1,5 +1,5 @@
 # coding: utf-8
-# import os
+import os
 import json
 import sys
 import argparse
@@ -98,7 +98,6 @@ if __name__ == '__main__':
     parser.set_defaults(glove=False)
     parser.add_argument('--glove-path', dest='glove_path', type=str,
                         default="../../disco_parse/data/glove_model/glove.6B.100d.txt", help='Path to pretrained glove vector')
-
     parser.add_argument('--word2vec', action='store_true',
                         help='Use word2vec vector?')
     parser.set_defaults(word2vec=False)

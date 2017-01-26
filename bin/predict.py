@@ -67,8 +67,8 @@ def main(config):
         # match question_id and prediction
         assert q_id_pair[n][1] == len(batch)
         x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = concat_examples(batch)
-        y_score, similarity_score = predictor(x1s,x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
-        x = np.concatenate([similarity_score.data, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+        y_score, similarity_score_b2, similarity_score_b3 = predictor(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
+        x = np.concatenate([similarity_score_b2.data, similarity_score_b3.data, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         for xi, yi in zip(x, y):
             features = "\t".join(str(w) for w in xi)
             out = "{question_id}\t{y}\t{features}".format(

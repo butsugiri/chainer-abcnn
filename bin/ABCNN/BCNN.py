@@ -19,7 +19,7 @@ class BCNN(Chain):
                 input_channel, output_channel, (4, embed_dim), pad=(3,0)),
             conv2=L.Convolution2D(
                 input_channel, output_channel, (4, 50), pad=(3,0)),
-            l1=L.Linear(in_size=1+4, out_size=1)  # 4 are from lexical features of WikiQA Task
+            l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
         )
         self.train = train
 
@@ -51,15 +51,19 @@ class BCNN(Chain):
         print("done", flush=True, file=sys.stderr)
 
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
-        enc1 = self.encode_sequence(x1s)
-        enc2 = self.encode_sequence(x2s)
-        similarity_score = F.squeeze(cos_sim(enc1, enc2), axis=2)
-        feature_vec = F.concat([similarity_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+        x1_avg_1, x1_avg_2 = self.encode_sequence(x1s)
+        x2_avg_1, x2_avg_2 = self.encode_sequence(x2s)
+        # enc2 = self.encode_sequence(x2s)
+
+        # similarity score for block 2 and 3 (block 1 is embedding layer)
+        similarity_score_b2 = F.squeeze(cos_sim(x1_avg_1, x2_avg_1), axis=2)
+        similarity_score_b3 = F.squeeze(cos_sim(x1_avg_2, x2_avg_2), axis=2)
+        feature_vec = F.concat([similarity_score_b2, similarity_score_b3, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         fc = F.squeeze(self.l1(feature_vec), axis=1)
         if self.train:
             return fc
         else:
-            return fc, similarity_score
+            return fc, similarity_score_b2, similarity_score_b3
 
 
     def encode_sequence(self, xs):
@@ -83,4 +87,5 @@ class BCNN(Chain):
         # 4. all_average_pooling
         xs_all_avg_1 = F.average_pooling_2d(xs_conv2, ksize=(xs_conv2.shape[2], 1))
         xs_all_avg_2 = F.average_pooling_2d(xs_conv1, ksize=(xs_conv1.shape[2], 1))
-        return F.concat([xs_all_avg_1, xs_all_avg_2], axis=1)
+        # return F.concat([xs_all_avg_1, xs_all_avg_2], axis=1)
+        return xs_all_avg_1, xs_all_avg_2
