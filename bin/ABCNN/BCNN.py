@@ -11,8 +11,10 @@ from .util import cos_sim, debug_print
 class BCNN(Chain):
 
     def __init__(self, n_vocab, embed_dim, input_channel, output_channel, train=True):
+        # initialize all embeddings by uniform sampling.
+        # but they are replaced by word2vec afterwards (except unknown token)
         super(BCNN, self).__init__(
-            embed=L.EmbedID(n_vocab, embed_dim),  # 100: word-embedding vector size
+            embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
             conv1=L.Convolution2D(
                 input_channel, output_channel, (4, embed_dim), pad=(3,0)),
             conv2=L.Convolution2D(
