@@ -32,6 +32,7 @@ class DataProcessor(object):
         print("loading dataset...", end='', flush=True, file=sys.stderr)
         self.train_data, self.n_train = self.load_dataset("train")
         self.dev_data, self.n_dev = self.load_dataset("dev")
+        self.test_data, self.n_test = self.load_dataset("test")
         if self.test:
             print("...preparing tiny dataset for quick test...", end='', flush=True, file=sys.stderr)
             self.train_data = self.train_data[:100]

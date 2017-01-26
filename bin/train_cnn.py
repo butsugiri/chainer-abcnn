@@ -1,12 +1,9 @@
 # coding: utf-8
 import os
 import json
-import numpy as np
 import sys
 import argparse
-import copy
-from collections import defaultdict
-from sklearn.metrics import average_precision_score
+from datetime import datetime
 
 import chainer
 from chainer import reporter, training
@@ -15,7 +12,6 @@ import chainer.optimizers as O
 import chainer.functions as F
 from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
-from datetime import datetime
 
 from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator, SelectiveWeightDecay
 
