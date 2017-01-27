@@ -6,7 +6,7 @@ import argparse
 from datetime import datetime
 
 import chainer
-from chainer import reporter, training
+from chainer import reporter, training, cuda
 import chainer.links as L
 import chainer.optimizers as O
 import chainer.functions as F
@@ -42,6 +42,7 @@ def main(args):
     model = L.Classifier(cnn, lossfun=sigmoid_cross_entropy,
                          accfun=binary_accuracy)
     if args.gpu >= 0:
+        cuda.get_device(args.gpu).use()
         model.to_gpu()
 
     # setup optimizer
