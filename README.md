@@ -14,8 +14,10 @@ BCNN Parameter
 - BatchSize: 20
 - Weight Decay: 0.0002
 
-Hyperparameters are not tuned very well, because it seems that the final performance heavily depends upon the initial weight of the model, and I did not find it interesting.
-Also, the original paper does not report it for BCNN.
+Hyperparameters are not tuned very well and the result is not as good as it should be.
+It seems that the final performance heavily depends upon the initial weight of the model.
+
+Since the original paper does not report the parameter for BCNN, I don't know whether my implementation is wrong, or it is parameter issue.
 
 
 |          | MAP    | MRR    |
