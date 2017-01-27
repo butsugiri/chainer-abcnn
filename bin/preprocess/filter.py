@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-
+for WikiQA
+this script removes questions that does not have
+right answer in it.
 """
 import sys
 import argparse
