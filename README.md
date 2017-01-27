@@ -5,7 +5,7 @@ In order to assure that the implementation is correct, this repo reports the res
 
 # WikiQA result
 ## BCNN Model
-BCNN Parameter
+BCNN HyperParameter
 - Number of BCNN layer: 1
 - Word Embedding: Pretrained word2vec vector from GNews
     - Dimension is 300
@@ -17,7 +17,7 @@ BCNN Parameter
 Hyperparameters are not tuned very well and the result is not as good as it should be.
 It seems that the final performance heavily depends upon the initial weight of the model.
 
-Since the original paper does not report the parameter for BCNN, I don't know whether my implementation is wrong, or it is parameter issue.
+Since the original paper does not report the hyperparameter for BCNN, I don't know whether my implementation is wrong, or it is parameter issue.
 
 
 |          | MAP    | MRR    |

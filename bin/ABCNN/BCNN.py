@@ -66,7 +66,7 @@ class BCNN(Chain):
         x2_vecs = self.encode_sequence(x2s)
         # enc2 = self.encode_sequence(x2s)
 
-        # similarity score for block 2 and 3 (block 1 is embedding layer)
+        # similarity score for block 1, 2 and 3 (block 1 is embedding layer)
         sim_scores = [F.squeeze(cos_sim(v1, v2), axis=2) for v1, v2 in zip(x1_vecs, x2_vecs)]
 
         feature_vec = F.concat(sim_scores + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
