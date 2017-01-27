@@ -61,9 +61,16 @@ class DataProcessor(object):
                 wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wordcnt']], dtype=np.float32)
                 wgt_wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wgt_wordcnt']], dtype=np.float32)
                 question_ids.append(data['question_id'])
-                # this should be in dict for readability
-                # but it requires implementating L.Classifier by myself
-                dataset.append((x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y))
+                sample = {
+                    "x1s": x1s,
+                    "x2s": x2s,
+                    "wordcnt": wordcnt,
+                    "wgt_wordcnt": wgt_wordcnt,
+                    "x1s_len": x1s_len,
+                    "x2s_len": x2s_len,
+                    "y": y
+                }
+                dataset.append(sample)
 
         # Number of Question-Answer Pair for each question.
         # This is needed for validation, when calculating MRR and MAP

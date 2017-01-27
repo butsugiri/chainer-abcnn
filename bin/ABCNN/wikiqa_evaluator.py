@@ -14,9 +14,10 @@ from .util import compute_map_mrr
 
 class WikiQAEvaluator(extensions.Evaluator):
 
-    def __init__(self, iterator, target, device, converter):
+    def __init__(self, iterator, target, device, converter, min_length):
         super(WikiQAEvaluator, self).__init__(
             iterator=iterator, target=target, device=device, converter=converter)
+        self.min_length = min_length
 
     def collect_prediction_for_train_data(self):
         """
@@ -30,7 +31,15 @@ class WikiQAEvaluator(extensions.Evaluator):
         train_X = []
         train_y = []
         for batch in it:
-            x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = self.converter(batch)
+            padded_batch = self.converter(batch, device=self.device, min_length=self.min_length)
+            x1s = padded_batch['x1s']
+            x2s = padded_batch['x2s']
+            wordcnt = padded_batch['wordcnt']
+            wgt_wordcnt = padded_batch['wgt_wordcnt']
+            x1s_len = padded_batch['x1s_len']
+            x2s_len = padded_batch['x2s_len']
+            y = padded_batch['y']
+
             y_score, sim_scores = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
             x = np.concatenate([x.data for x in sim_scores] + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
             train_X.append(x)
@@ -57,7 +66,15 @@ class WikiQAEvaluator(extensions.Evaluator):
         for n, batch in enumerate(it):
             observation = {}
             with reporter.report_scope(observation):
-                x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len, y = self.converter(batch)
+                padded_batch = self.converter(batch, device=self.device, min_length=self.min_length)
+                x1s = padded_batch['x1s']
+                x2s = padded_batch['x2s']
+                wordcnt = padded_batch['wordcnt']
+                wgt_wordcnt = padded_batch['wgt_wordcnt']
+                x1s_len = padded_batch['x1s_len']
+                x2s_len = padded_batch['x2s_len']
+                y = padded_batch['y']
+
                 y_score, sim_scores = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
 
                 # compute loss

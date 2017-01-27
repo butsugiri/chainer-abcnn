@@ -4,6 +4,7 @@ import json
 import sys
 import argparse
 from datetime import datetime
+import numpy as np
 
 import chainer
 from chainer import reporter, training, cuda
@@ -14,6 +15,8 @@ from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
 
 from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator, SelectiveWeightDecay
+from ABCNN.updater import ABCNNUpdater
+from ABCNN.classifier import Classifier
 
 
 def main(args):
@@ -39,7 +42,7 @@ def main(args):
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     if args.word2vec:
         cnn.load_word2vec_embeddings(args.word2vec_path, data_processor.vocab)
-    model = L.Classifier(cnn, lossfun=sigmoid_cross_entropy,
+    model = Classifier(cnn, lossfun=sigmoid_cross_entropy,
                          accfun=binary_accuracy)
     if args.gpu >= 0:
         cuda.get_device(args.gpu).use()
@@ -58,8 +61,9 @@ def main(args):
     dev_train_iter = chainer.iterators.SerialIterator(
         train_data, args.batchsize, repeat=False)
     dev_iter = DevIterator(dev_data, data_processor.n_dev)
-    updater = training.StandardUpdater(
-        train_iter, optimizer, converter=concat_examples, device=args.gpu)
+    # TODO: this is TEMPORARY
+    min_length = np.array([40], dtype=np.int32)
+    updater = ABCNNUpdater(train_iter, optimizer, min_length=min_length, converter=concat_examples, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=abs_dest)
 
     # setup evaluation
@@ -67,7 +71,7 @@ def main(args):
     eval_predictor.train = False
     iters = {"train": dev_train_iter, "dev": dev_iter}
     trainer.extend(WikiQAEvaluator(
-        iters, eval_predictor, converter=concat_examples, device=args.gpu))
+        iters, eval_predictor, converter=concat_examples, device=args.gpu, min_length=min_length))
 
     # extentions...
     trainer.extend(extensions.LogReport())
