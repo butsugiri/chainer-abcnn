@@ -21,6 +21,9 @@ class ABCNN(Chain):
         self.embed_dim = embed_dim
         self.single_attention_mat = single_attention_mat
         self.model_type = model_type
+        self.output_channel = output_channel
+
+        # use same matrix for transforming attention matrix
         if single_attention_mat:
             self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)
             super(ABCNN, self).__init__(
@@ -32,6 +35,7 @@ class ABCNN(Chain):
                 W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len)
             )
         else:
+        # use different matrix for each side of the model (i.e. x1s and x2s)
             self.x1s_len = x1s_len
             self.x2s_len = x2s_len
             super(ABCNN, self).__init__(
@@ -43,8 +47,6 @@ class ABCNN(Chain):
                 W0=L.Linear(in_size=embed_dim, out_size=x2s_len),
                 W1=L.Linear(in_size=embed_dim, out_size=x1s_len)
             )
-            self.x1_mat = self.W0
-            self.x2_mat = self.W1
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
@@ -77,9 +79,9 @@ class ABCNN(Chain):
         batchsize = x1s.shape[0]
         ex1s = self.get_embeddings(x1s)
         ex2s = self.get_embeddings(x2s)
-        attention_mat = F.squeeze(self.build_attention_mat(ex1s, ex2s), axis=1)
 
-        if self.model_type == 'ABCNN1' or self.model_type == 'ABCNN3': # ABCNN-1
+        if self.model_type == 'ABCNN1' or self.model_type == 'ABCNN3':
+            attention_mat = F.squeeze(self.build_attention_mat(ex1s, ex2s), axis=1)
             identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
             if self.single_attention_mat:
                 W0 = W1 = self.W0(identity)
@@ -93,7 +95,7 @@ class ABCNN(Chain):
             W1 = F.stack([W1] * batchsize)
             x2s_attention = F.reshape(F.batch_matmul(W1, attention_mat), (batchsize, 1, self.x2s_len, self.embed_dim))
             x2s_conv1_input = F.concat([ex2s, x2s_attention], axis=1)
-        else: #not ABCNN-1
+        else:  # dealing with ABCNN2
             x1s_conv1_input = ex1s
             x2s_conv1_input = ex2s
 
@@ -101,7 +103,22 @@ class ABCNN(Chain):
         x2s_conv1_output = self.wide_convolution(x2s_conv1_input)
 
         if self.model_type == 'ABCNN2' or self.model_type == 'ABCNN3': #ABCNN-2
-            pass
+            # build attention matrix from output of wide-convolution
+            attention_mat = F.squeeze(self.build_attention_mat(x1s_conv1_output, x2s_conv1_output), axis=1)
+
+            # col-wise sum for x1s
+            col_wise_sums = F.sum(attention_mat, axis=2)
+            shape = col_wise_sums.shape
+            col_wise_sums = F.reshape(col_wise_sums, (batchsize, 1, shape[1], 1))
+            attention_coefs = F.tile(col_wise_sums, reps=(1,1,1,self.output_channel))
+            x1s_avg_pool_input = x1s_conv1_output * attention_coefs
+
+            # row-wise sum for x2s
+            row_wise_sums = F.sum(attention_mat, axis=1)
+            shape = row_wise_sums.shape
+            row_wise_sums = F.reshape(row_wise_sums, (batchsize, 1, shape[1], 1))
+            attention_coefs = F.tile(row_wise_sums, reps=(1,1,1,self.output_channel))
+            x2s_avg_pool_input = x2s_conv1_output * attention_coefs
         else: # not ABCNN-2
             x1s_avg_pool_input = x1s_conv1_output
             x2s_avg_pool_input = x2s_conv1_output
@@ -109,21 +126,24 @@ class ABCNN(Chain):
         x1s_avg = F.average_pooling_2d(x1s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
         x2s_avg = F.average_pooling_2d(x2s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
 
+        # average pooling from the very top of the model (i.e. block[-1])
         x1s_all_pool = F.average_pooling_2d(x1s_avg, ksize=(x1s_avg.shape[2], 1))
         x2s_all_pool = F.average_pooling_2d(x2s_avg, ksize=(x2s_avg.shape[2], 1))
+        avg_pool_sim_score = F.squeeze(cos_sim(x1s_all_pool, x2s_all_pool), axis=2)
 
+        # average pooling from the embedding layer
+        # essentially this is equivalent to adding the bag-of-words feature
         ex1s_all_pool = F.average_pooling_2d(ex1s, ksize=(ex1s.shape[2], 1))
         ex2s_all_pool = F.average_pooling_2d(ex2s, ksize=(ex2s.shape[2], 1))
-
-        avg_pool_sim_score = F.squeeze(cos_sim(x1s_all_pool, x2s_all_pool), axis=2)
         embed_sim_score = F.squeeze(cos_sim(ex1s_all_pool, ex2s_all_pool), axis=2)
 
         feature_vec = F.concat([avg_pool_sim_score, embed_sim_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
-        fc = F.squeeze(self.l1(feature_vec), axis=1)
+        fc_out = F.squeeze(self.l1(feature_vec), axis=1)
         if self.train:
-            return fc
+            return fc_out
         else:
-            return fc, sim_scores
+            sim_scores = [avg_pool_sim_score, embed_sim_score]
+            return fc_out, sim_scores
 
     def get_embeddings(self, xs):
         exs = self.embed(xs)
@@ -133,8 +153,12 @@ class ABCNN(Chain):
         return exs
 
     def build_attention_mat(self, x1s, x2s):
-        lis = [match_score(x1s[:,:,i], x2s[:,:,j]) for i, j in product(range(self.x1s_len), range(self.x2s_len))]
-        attention = F.reshape(F.concat(lis, axis=1), (x1s.shape[0], 1, self.x1s_len, self.x2s_len))
+        #TODO: I guess there is better implementation for this.
+        x1s_len = x1s.shape[2]
+        x2s_len = x2s.shape[2]
+
+        lis = [match_score(x1s[:,:,i], x2s[:,:,j]) for i, j in product(range(x1s_len), range(x2s_len))]
+        attention = F.reshape(F.concat(lis, axis=1), (x1s.shape[0], 1, x1s_len, x2s_len))
         return attention
 
     def wide_convolution(self, xs):

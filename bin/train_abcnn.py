@@ -141,4 +141,5 @@ if __name__ == '__main__':
 
     # can't use word2vec and glove at the same time
     assert not (args.glove and args.word2vec)
+    assert args.model_type in ["ABCNN1", "ABCNN2", "ABCNN3"]
     main(args)
