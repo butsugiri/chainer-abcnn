@@ -14,7 +14,7 @@ import chainer.links as L
 
 # basically this is same as the one on chainer's repo.
 # I added padding option (padding=0) to be always true
-def concat_examples(batch, min_length, device=None, padding=0):
+def concat_examples(batch, device=None, padding=0):
     if len(batch) == 0:
         raise ValueError('batch is empty')
 
@@ -36,7 +36,7 @@ def concat_examples(batch, min_length, device=None, padding=0):
 
         for i in six.moves.range(len(first_elem)):
             result.append(to_device(_concat_arrays(
-                [example[i] for example in batch], padding[i], min_length)))
+                [example[i] for example in batch], padding[i])))
 
         return tuple(result)
     elif isinstance(first_elem, dict):
@@ -45,12 +45,8 @@ def concat_examples(batch, min_length, device=None, padding=0):
             padding = {key: padding for key in first_elem}
 
         for key in first_elem:
-            if key == "x1s" or key == "x2s":
-                result[key] = to_device(_concat_xs(
-                    [example[key] for example in batch], padding[key], min_length))
-            else:
-                result[key] = to_device(_concat_arrays(
-                    [example[key] for example in batch], padding[key]))
+            result[key] = to_device(_concat_arrays(
+                [example[key] for example in batch], padding[key]))
 
         return result
 
@@ -66,32 +62,6 @@ def _concat_arrays(arrays, padding):
 
 def _concat_arrays_with_padding(arrays, padding):
     shape = numpy.array(arrays[0].shape, dtype=int)
-    # shape = min_length
-    for array in arrays[1:]:
-        if numpy.any(shape != array.shape):
-            numpy.maximum(shape, array.shape, shape)
-    shape = tuple(numpy.insert(shape, 0, len(arrays)))
-
-    xp = cuda.get_array_module(arrays[0])
-    with cuda.get_device(arrays[0]):
-        result = xp.full(shape, padding, dtype=arrays[0].dtype)
-        for i in six.moves.range(len(arrays)):
-            src = arrays[i]
-            slices = tuple(slice(dim) for dim in src.shape)
-            result[(i,) + slices] = src
-    return result
-
-def _concat_xs(arrays, padding, min_length):
-    if padding is not None:
-        return _concat_xs_with_padding(arrays, padding, min_length)
-
-    xp = cuda.get_array_module(arrays[0])
-    with cuda.get_device(arrays[0]):
-        return xp.concatenate([array[None] for array in arrays])
-
-def _concat_xs_with_padding(arrays, padding, min_length):
-    # shape = numpy.array(arrays[0].shape, dtype=int)
-    shape = min_length
     for array in arrays[1:]:
         if numpy.any(shape != array.shape):
             numpy.maximum(shape, array.shape, shape)

@@ -12,13 +12,14 @@ from chainer import optimizer as optimizer_module
 from chainer import variable
 
 class ABCNNUpdater(StandardUpdater):
-    def __init__(self, iterator, optimizer, converter, min_length, device=None, loss_func=None):
+    def __init__(self, iterator, optimizer, converter, x1s_len, x2s_len, device=None, loss_func=None):
         super().__init__(iterator, optimizer, converter, device, loss_func)
-        self.min_length = min_length
+        self.x1s_len = x1s_len
+        self.x2s_len = x2s_len
 
     def update_core(self):
         batch = self._iterators['main'].next()
-        in_arrays = self.converter(batch=batch, device=self.device, min_length=self.min_length)
+        in_arrays = self.converter(batch=batch, device=self.device, x1s_len=self.x1s_len, x2s_len=self.x2s_len)
 
         optimizer = self._optimizers['main']
         loss_func = self.loss_func or optimizer.target

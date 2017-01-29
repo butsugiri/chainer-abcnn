@@ -14,9 +14,13 @@ import chainer.functions as F
 from chainer.functions import sigmoid_cross_entropy, binary_accuracy
 from chainer.training import extensions
 
-from ABCNN import BCNN, DataProcessor, concat_examples, DevIterator, WikiQAEvaluator, SelectiveWeightDecay
+from ABCNN.model import ABCNN
 from ABCNN.updater import ABCNNUpdater
 from ABCNN.classifier import Classifier
+from ABCNN.wikiqa_evaluator import WikiQAEvaluator
+from ABCNN.util import concat_examples, SelectiveWeightDecay
+from ABCNN.dev_iterator import DevIterator
+from ABCNN.data_processor import DataProcessor
 
 
 def main(args):
@@ -28,16 +32,19 @@ def main(args):
         fo.write(json.dumps(vars(args), sort_keys=True, indent=4))
 
     # load data
-    data_processor = DataProcessor(args.data, args.vocab, args.test)
+    data_processor = DataProcessor(args.data, args.vocab, args.test, args.max_length)
     data_processor.prepare_dataset()
+    data_processor.compute_max_length()
     train_data = data_processor.train_data
     dev_data = data_processor.dev_data
 
     # create model
     vocab = data_processor.vocab
     embed_dim = args.dim
-    cnn = BCNN(n_vocab=len(vocab), n_layer=args.layer, embed_dim=embed_dim, input_channel=1,
-               output_channel=50)  # ABCNNはoutput = 50固定らしいが．
+    x1s_len = data_processor.max_x1s_len
+    x2s_len = data_processor.max_x2s_len
+    cnn = ABCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1,
+               output_channel=50, x1s_len=x1s_len, x2s_len=x2s_len, single_attention_mat=args.single_attention_mat)  # ABCNNはoutput = 50固定らしいが．
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     if args.word2vec:
@@ -61,9 +68,10 @@ def main(args):
     dev_train_iter = chainer.iterators.SerialIterator(
         train_data, args.batchsize, repeat=False)
     dev_iter = DevIterator(dev_data, data_processor.n_dev)
-    # TODO: this is TEMPORARY
-    min_length = np.array([40], dtype=np.int32)
-    updater = ABCNNUpdater(train_iter, optimizer, min_length=min_length, converter=concat_examples, device=args.gpu)
+
+    x1s_len = np.array([cnn.x1s_len], dtype=np.int32)
+    x2s_len = np.array([cnn.x2s_len], dtype=np.int32)
+    updater = ABCNNUpdater(train_iter, optimizer, x1s_len=x1s_len, x2s_len=x2s_len, converter=concat_examples, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=abs_dest)
 
     # setup evaluation
@@ -71,7 +79,7 @@ def main(args):
     eval_predictor.train = False
     iters = {"train": dev_train_iter, "dev": dev_iter}
     trainer.extend(WikiQAEvaluator(
-        iters, eval_predictor, converter=concat_examples, device=args.gpu, min_length=min_length))
+        iters, eval_predictor, converter=concat_examples, device=args.gpu, x1s_len=x1s_len, x2s_len=x2s_len))
 
     # extentions...
     trainer.extend(extensions.LogReport())
@@ -108,7 +116,6 @@ if __name__ == '__main__':
     parser.set_defaults(word2vec=False)
     parser.add_argument('--word2vec-path', dest='word2vec_path', type=str,
                         default="../../disco_parse/data/glove_model/glove.6B.100d.txt", help='Path to pretrained word2vec vector')
-
     parser.add_argument('--test', action='store_true',
                         help='Use tiny dataset for quick test')
     parser.set_defaults(test=False)
@@ -118,8 +125,10 @@ if __name__ == '__main__':
                         default="../work/word2vec_vocab.txt", help='Vocabulary file')
     parser.add_argument('--lr',  type=float,
                         default=0.08, help='Learning rate')
-    parser.add_argument('--layer',  type=int,
-                        default=1, help='Number of layers (conv-blocks)')
+    parser.add_argument('--max-length', dest="max_length", type=int,
+                        default=40, help='Max length of the sentence. (longer sentence gets truncated)')
+    parser.add_argument('--single-attention-mat', dest="single_attention_mat", action='store_true',
+                        help='Use same matrix for attention')
 
     args = parser.parse_args()
 

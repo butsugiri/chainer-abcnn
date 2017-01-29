@@ -8,31 +8,24 @@ from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
 from .util import cos_sim, debug_print
 
-class BCNN(Chain):
+class ABCNN(Chain):
 
-    def __init__(self, n_vocab, n_layer, embed_dim, input_channel, output_channel, train=True):
+    def __init__(self, n_vocab, embed_dim, input_channel, output_channel, x1s_len, x2s_len, single_attention_mat=False, train=True):
         self.train = train
-        self.n_layer = n_layer
+        if single_attention_mat:
+            self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)
+        else:
+            self.x1s_len = x1s_len
+            self.x2s_len = x2s_len
+
         # initialize all embeddings by uniform sampling.
         # but they are replaced by word2vec afterwards (except unknown token)
-        if self.n_layer == 1:
-            # 俺が今まで単層だと思ってたのは2層だったんだよ
-            super(BCNN, self).__init__(
-                embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
-                conv1=L.Convolution2D(
-                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
-                l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
-            )
-        elif self.n_layer == 2:
-            super(BCNN, self).__init__(
-                embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
-                conv1=L.Convolution2D(
-                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
-                conv2=L.Convolution2D(
-                    input_channel, output_channel, (4, 50), pad=(3,0)),
-                l1=L.Linear(in_size=3+4, out_size=1)  # 4 are from lexical features of WikiQA Task
-            )
-
+        super(ABCNN, self).__init__(
+            embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+            conv1=L.Convolution2D(
+                input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+            l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
+        )
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
@@ -93,10 +86,8 @@ class BCNN(Chain):
 
         embed_avg = F.average_pooling_2d(embed_xs, ksize=(embed_xs.shape[2], 1))
         xs_avg_1 = F.average_pooling_2d(xs_avg, ksize=(xs_avg.shape[2], 1))
-        if self.n_layer == 1:
-            # print(cos_sim(embed_avg, xs_avg_1).debug_print())
-            return embed_avg, xs_avg_1
-        elif self.n_layer == 2:
-            xs_conv2 = F.tanh(self.conv2(xs_avg))
-            xs_avg_2 = F.average_pooling_2d(xs_conv2, ksize=(xs_conv2.shape[2], 1))
-            return embed_avg, xs_avg_1, xs_avg_2
+        return embed_avg, xs_avg_1
+        # elif self.n_layer == 2:
+        #     xs_conv2 = F.tanh(self.conv2(xs_avg))
+        #     xs_avg_2 = F.average_pooling_2d(xs_conv2, ksize=(xs_conv2.shape[2], 1))
+        #     return embed_avg, xs_avg_1, xs_avg_2
