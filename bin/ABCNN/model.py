@@ -22,7 +22,7 @@ class ABCNN(Chain):
         self.single_attention_mat = single_attention_mat
         self.model_type = model_type
         self.output_channel = output_channel
-        self.identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
+        # self.epsilon = Variable(self.xp.array([0.00001], dtype=np.float32))
 
         # use same matrix for transforming attention matrix
         if single_attention_mat:
@@ -83,11 +83,12 @@ class ABCNN(Chain):
 
         if self.model_type == 'ABCNN1' or self.model_type == 'ABCNN3':
             attention_mat = F.squeeze(self.build_attention_mat(ex1s, ex2s), axis=1)
+            identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
             if self.single_attention_mat:
-                W0 = W1 = self.W0(self.identity)
+                W0 = W1 = self.W0(identity)
             else:
-                W0 = self.W0(self.identity)
-                W1 = self.W1(self.identity)
+                W0 = self.W0(identity)
+                W1 = self.W1(identity)
             W0 = F.stack([W0] * batchsize)
             x1s_attention = F.reshape(F.batch_matmul(W0, attention_mat, transb=True), (batchsize, 1, self.x1s_len, self.embed_dim))
             x1s_conv1_input = F.concat([ex1s, x1s_attention], axis=1)
@@ -156,10 +157,26 @@ class ABCNN(Chain):
         #TODO: I guess there is better implementation for this.
         x1s_len = x1s.shape[2]
         x2s_len = x2s.shape[2]
+        batchsize = x1s.shape[0]
 
-        lis = [match_score(x1s[:,:,i], x2s[:,:,j]) for i, j in product(range(x1s_len), range(x2s_len))]
-        attention = F.reshape(F.concat(lis, axis=1), (x1s.shape[0], 1, x1s_len, x2s_len))
-        return attention
+        x1s = F.squeeze(x1s, axis=1)
+        x2s = F.squeeze(x2s, axis=1)
+        x1s_x2s = F.batch_matmul(x1s, x2s, transb=True)
+        # print("x1s  x2s")
+        # print(x1s_x2s.data)
+        x1s_squared = F.tile(F.expand_dims(F.sum(F.square(x1s), axis=2), axis=2), reps=(1, 1, x2s.shape[1]))
+        # print("x1s  squared")
+        # print(x1s_squared.data)
+        x2s_squared = F.tile(F.expand_dims(F.sum(F.square(x2s), axis=2), axis=1), reps=(1, x1s.shape[1], 1))
+        # print("x2s  squared")
+        # print(x2s_squared.data)
+        epsilon = Variable(self.xp.full((batchsize, x1s_len, x2s_len), 0.10, dtype=np.float32))
+        denominator = 1.0 + F.sqrt(x1s_squared + (-2 * x1s_x2s) + x2s_squared + 0.00001)
+        denominator = F.maximum(epsilon, denominator)
+
+        return F.expand_dims(1.0 / denominator, axis=1)
+        # lis = [match_score(x1s[:,:,i], x2s[:,:,j]) for i, j in product(range(x1s_len), range(x2s_len))]
+        # attention = F.reshape(F.concat(lis, axis=1), (x1s.shape[0], 1, x1s_len, x2s_len))
 
     def wide_convolution(self, xs):
         xs_conv1 = F.tanh(self.conv1(xs))

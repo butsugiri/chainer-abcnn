@@ -63,7 +63,7 @@ def main(args):
     # setup optimizer
     optimizer = O.AdaGrad(args.lr)
     optimizer.setup(model)
-    # do not use weight decay for embeddings
+    # do not use weight decay for embeddings    
     decay_params = {name: 1 for name,
                     variable in model.namedparams() if "embed" not in name}
     optimizer.add_hook(SelectiveWeightDecay(
