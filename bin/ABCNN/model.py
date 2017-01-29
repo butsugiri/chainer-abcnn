@@ -22,6 +22,7 @@ class ABCNN(Chain):
         self.single_attention_mat = single_attention_mat
         self.model_type = model_type
         self.output_channel = output_channel
+        self.identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
 
         # use same matrix for transforming attention matrix
         if single_attention_mat:
@@ -82,12 +83,11 @@ class ABCNN(Chain):
 
         if self.model_type == 'ABCNN1' or self.model_type == 'ABCNN3':
             attention_mat = F.squeeze(self.build_attention_mat(ex1s, ex2s), axis=1)
-            identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
             if self.single_attention_mat:
-                W0 = W1 = self.W0(identity)
+                W0 = W1 = self.W0(self.identity)
             else:
-                W0 = self.W0(identity)
-                W1 = self.W1(identity)
+                W0 = self.W0(self.identity)
+                W1 = self.W1(self.identity)
             W0 = F.stack([W0] * batchsize)
             x1s_attention = F.reshape(F.batch_matmul(W0, attention_mat, transb=True), (batchsize, 1, self.x1s_len, self.embed_dim))
             x1s_conv1_input = F.concat([ex1s, x1s_attention], axis=1)
