@@ -76,6 +76,7 @@ class ABCNN(Chain):
                     self.embed.W.data[vocab[word]] = vec
         print("done", flush=True, file=sys.stderr)
 
+    @profile
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
         batchsize = x1s.shape[0]
         ex1s = self.get_embeddings(x1s)
@@ -89,11 +90,12 @@ class ABCNN(Chain):
             else:
                 W0 = self.W0(identity)
                 W1 = self.W1(identity)
-            W0 = F.stack([W0] * batchsize)
+            W0 = F.tile(F.expand_dims(W0, axis=0), reps=(batchsize,1,1))
             x1s_attention = F.reshape(F.batch_matmul(W0, attention_mat, transb=True), (batchsize, 1, self.x1s_len, self.embed_dim))
             x1s_conv1_input = F.concat([ex1s, x1s_attention], axis=1)
 
-            W1 = F.stack([W1] * batchsize)
+            W1 = F.tile(F.expand_dims(W1, axis=0), reps=(batchsize,1,1))  # seemingly faster than stack * batchsize
+            x1s_attention = F.reshape(F.batch_matmul(W0, attention_mat, transb=True), (batchsize, 1, self.x1s_len, self.embed_dim))
             x2s_attention = F.reshape(F.batch_matmul(W1, attention_mat), (batchsize, 1, self.x2s_len, self.embed_dim))
             x2s_conv1_input = F.concat([ex2s, x2s_attention], axis=1)
         else:  # dealing with ABCNN2
@@ -154,7 +156,6 @@ class ABCNN(Chain):
         return exs
 
     def build_attention_mat(self, x1s, x2s):
-        #TODO: I guess there is better implementation for this.
         x1s_len = x1s.shape[2]
         x2s_len = x2s.shape[2]
         batchsize = x1s.shape[0]
@@ -162,21 +163,13 @@ class ABCNN(Chain):
         x1s = F.squeeze(x1s, axis=1)
         x2s = F.squeeze(x2s, axis=1)
         x1s_x2s = F.batch_matmul(x1s, x2s, transb=True)
-        # print("x1s  x2s")
-        # print(x1s_x2s.data)
         x1s_squared = F.tile(F.expand_dims(F.sum(F.square(x1s), axis=2), axis=2), reps=(1, 1, x2s.shape[1]))
-        # print("x1s  squared")
-        # print(x1s_squared.data)
         x2s_squared = F.tile(F.expand_dims(F.sum(F.square(x2s), axis=2), axis=1), reps=(1, x1s.shape[1], 1))
-        # print("x2s  squared")
-        # print(x2s_squared.data)
         epsilon = Variable(self.xp.full((batchsize, x1s_len, x2s_len), 0.10, dtype=np.float32))
         denominator = 1.0 + F.sqrt(x1s_squared + (-2 * x1s_x2s) + x2s_squared + 0.00001)
         denominator = F.maximum(epsilon, denominator)
 
         return F.expand_dims(1.0 / denominator, axis=1)
-        # lis = [match_score(x1s[:,:,i], x2s[:,:,j]) for i, j in product(range(x1s_len), range(x2s_len))]
-        # attention = F.reshape(F.concat(lis, axis=1), (x1s.shape[0], 1, x1s_len, x2s_len))
 
     def wide_convolution(self, xs):
         xs_conv1 = F.tanh(self.conv1(xs))

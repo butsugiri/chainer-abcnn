@@ -54,50 +54,59 @@ class WikiQAEvaluator(extensions.Evaluator):
     def evaluate(self):
         train_X, train_y = self.collect_prediction_for_train_data()
         model = LinearSVC()
-        model.fit(X=train_X, y=train_y)
+        try:
+            model.fit(X=train_X, y=train_y)
+        except:
+            summary_dict = {}
+            summary_dict["validation/main/svm_map"] = 0
+            summary_dict["validation/main/svm_mrr"] = 0
+            summary_dict["validation/main/map"] = 0
+            summary_dict["validation/main/mrr"] = 0
+            return summary_dict
+        else:
 
-        iterator = self._iterators['dev']
-        target = self._targets['main']
-        # this is necessary for more-than-once-evaluation
-        it = copy.copy(iterator)
+            iterator = self._iterators['dev']
+            target = self._targets['main']
+            # this is necessary for more-than-once-evaluation
+            it = copy.copy(iterator)
 
-        label_scores = []
-        svm_label_scores = []
-        summary = reporter.DictSummary()
-        for n, batch in enumerate(it):
-            observation = {}
-            with reporter.report_scope(observation):
-                padded_batch = self.converter(batch, device=self.device, x1s_len=self.x1s_len, x2s_len=self.x2s_len)
-                x1s = padded_batch['x1s']
-                x2s = padded_batch['x2s']
-                wordcnt = padded_batch['wordcnt']
-                wgt_wordcnt = padded_batch['wgt_wordcnt']
-                x1s_len = padded_batch['x1s_len']
-                x2s_len = padded_batch['x2s_len']
-                y = padded_batch['y']
+            label_scores = []
+            svm_label_scores = []
+            summary = reporter.DictSummary()
+            for n, batch in enumerate(it):
+                observation = {}
+                with reporter.report_scope(observation):
+                    padded_batch = self.converter(batch, device=self.device, x1s_len=self.x1s_len, x2s_len=self.x2s_len)
+                    x1s = padded_batch['x1s']
+                    x2s = padded_batch['x2s']
+                    wordcnt = padded_batch['wordcnt']
+                    wgt_wordcnt = padded_batch['wgt_wordcnt']
+                    x1s_len = padded_batch['x1s_len']
+                    x2s_len = padded_batch['x2s_len']
+                    y = padded_batch['y']
 
-                y_score, sim_scores = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
+                    y_score, sim_scores = target(x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len)
 
-                # compute loss
-                loss = F.sigmoid_cross_entropy(x=y_score, t=y).data
-                reporter.report({'loss': loss}, target)
+                    # compute loss
+                    loss = F.sigmoid_cross_entropy(x=y_score, t=y).data
+                    reporter.report({'loss': loss}, target)
 
-                # We evaluate WikiQA by MAP and MRR
-                # for direct evaluation
-                label_score = np.c_[y, y_score.data]
-                label_scores.append(label_score)
-                # for SVM/LR
-                x = np.concatenate([x.data for x in sim_scores] + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
-                y_score = model.decision_function(x)
-                svm_label_score = np.c_[y, y_score]
-                svm_label_scores.append(svm_label_score)
-            summary.add(observation)
+                    # We evaluate WikiQA by MAP and MRR
+                    # for direct evaluation
+                    label_score = np.c_[y, y_score.data]
+                    label_scores.append(label_score)
+                    # for SVM/LR
+                    x = np.concatenate([x.data for x in sim_scores] + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+                    y_score = model.decision_function(x)
+                    svm_label_score = np.c_[y, y_score]
+                    svm_label_scores.append(svm_label_score)
+                summary.add(observation)
 
-        stats = compute_map_mrr(label_scores)
-        svm_stats = compute_map_mrr(svm_label_scores)
-        summary_dict = summary.compute_mean()
-        summary_dict["validation/main/svm_map"] = svm_stats.map
-        summary_dict["validation/main/svm_mrr"] = svm_stats.mrr
-        summary_dict["validation/main/map"] = stats.map
-        summary_dict["validation/main/mrr"] = stats.mrr
-        return summary_dict
+            stats = compute_map_mrr(label_scores)
+            svm_stats = compute_map_mrr(svm_label_scores)
+            summary_dict = summary.compute_mean()
+            summary_dict["validation/main/svm_map"] = svm_stats.map
+            summary_dict["validation/main/svm_mrr"] = svm_stats.mrr
+            summary_dict["validation/main/map"] = stats.map
+            summary_dict["validation/main/mrr"] = stats.mrr
+            return summary_dict
