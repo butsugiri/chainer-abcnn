@@ -43,8 +43,13 @@ def main(args):
     embed_dim = args.dim
     x1s_len = data_processor.max_x1s_len
     x2s_len = data_processor.max_x2s_len
-    cnn = ABCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=1,
-               output_channel=50, x1s_len=x1s_len, x2s_len=x2s_len, single_attention_mat=args.single_attention_mat)  # ABCNNはoutput = 50固定らしいが．
+    model_type = args.model_type
+    if args.model_type == 'ABCNN1' or args.model_type == 'ABCNN3':
+        input_channel = 2
+    else:
+        input_channel = 1
+    cnn = ABCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=input_channel,
+               output_channel=50, x1s_len=x1s_len, x2s_len=x2s_len, model_type=model_type, single_attention_mat=args.single_attention_mat)  # ABCNNはoutput = 50固定らしいが．
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     if args.word2vec:
@@ -129,6 +134,8 @@ if __name__ == '__main__':
                         default=40, help='Max length of the sentence. (longer sentence gets truncated)')
     parser.add_argument('--single-attention-mat', dest="single_attention_mat", action='store_true',
                         help='Use same matrix for attention')
+    parser.add_argument('--model-type', dest="model_type", type=str, default='ABCNN1',
+                        help='Model type')
 
     args = parser.parse_args()
 

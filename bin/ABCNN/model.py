@@ -7,25 +7,44 @@ import numpy as np
 from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
 from .util import cos_sim, debug_print
+from itertools import product
+
+def match_score(xi, yi):
+    tmp = xi - yi
+    tmp = tmp * tmp
+    return 1 / (1 + F.sqrt(F.sum(tmp, axis=2) + 0.00001))
 
 class ABCNN(Chain):
 
-    def __init__(self, n_vocab, embed_dim, input_channel, output_channel, x1s_len, x2s_len, single_attention_mat=False, train=True):
+    def __init__(self, n_vocab, embed_dim, input_channel, output_channel, x1s_len, x2s_len, model_type, single_attention_mat=False, train=True):
         self.train = train
+        self.embed_dim = embed_dim
+        self.single_attention_mat = single_attention_mat
+        self.model_type = model_type
         if single_attention_mat:
             self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)
+            super(ABCNN, self).__init__(
+                # embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+                embed=L.EmbedID(n_vocab, embed_dim),  # 100: word-embedding vector size
+                conv1=L.Convolution2D(
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+                l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
+                W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len)
+            )
         else:
             self.x1s_len = x1s_len
             self.x2s_len = x2s_len
-
-        # initialize all embeddings by uniform sampling.
-        # but they are replaced by word2vec afterwards (except unknown token)
-        super(ABCNN, self).__init__(
-            embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
-            conv1=L.Convolution2D(
-                input_channel, output_channel, (4, embed_dim), pad=(3,0)),
-            l1=L.Linear(in_size=2+4, out_size=1)  # 4 are from lexical features of WikiQA Task
-        )
+            super(ABCNN, self).__init__(
+                # embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+                embed=L.EmbedID(n_vocab, embed_dim),  # 100: word-embedding vector size
+                conv1=L.Convolution2D(
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+                l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
+                W0=L.Linear(in_size=embed_dim, out_size=x2s_len),
+                W1=L.Linear(in_size=embed_dim, out_size=x1s_len)
+            )
+            self.x1_mat = self.W0
+            self.x2_mat = self.W1
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
@@ -55,39 +74,71 @@ class ABCNN(Chain):
         print("done", flush=True, file=sys.stderr)
 
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
-        x1_vecs = self.encode_sequence(x1s)
-        x2_vecs = self.encode_sequence(x2s)
-        # enc2 = self.encode_sequence(x2s)
+        batchsize = x1s.shape[0]
+        ex1s = self.get_embeddings(x1s)
+        ex2s = self.get_embeddings(x2s)
+        attention_mat = F.squeeze(self.build_attention_mat(ex1s, ex2s), axis=1)
 
-        # similarity score for block 1, 2 and 3 (block 1 is embedding layer)
-        sim_scores = [F.squeeze(cos_sim(v1, v2), axis=2) for v1, v2 in zip(x1_vecs, x2_vecs)]
+        if self.model_type == 'ABCNN1' or self.model_type == 'ABCNN3': # ABCNN-1
+            identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
+            if self.single_attention_mat:
+                W0 = W1 = self.W0(identity)
+            else:
+                W0 = self.W0(identity)
+                W1 = self.W1(identity)
+            W0 = F.stack([W0] * batchsize)
+            x1s_attention = F.reshape(F.batch_matmul(W0, attention_mat, transb=True), (batchsize, 1, self.x1s_len, self.embed_dim))
+            x1s_conv1_input = F.concat([ex1s, x1s_attention], axis=1)
 
-        feature_vec = F.concat(sim_scores + [wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+            W1 = F.stack([W1] * batchsize)
+            x2s_attention = F.reshape(F.batch_matmul(W1, attention_mat), (batchsize, 1, self.x2s_len, self.embed_dim))
+            x2s_conv1_input = F.concat([ex2s, x2s_attention], axis=1)
+        else: #not ABCNN-1
+            x1s_conv1_input = ex1s
+            x2s_conv1_input = ex2s
+
+        x1s_conv1_output = self.wide_convolution(x1s_conv1_input)
+        x2s_conv1_output = self.wide_convolution(x2s_conv1_input)
+
+        if self.model_type == 'ABCNN2' or self.model_type == 'ABCNN3': #ABCNN-2
+            pass
+        else: # not ABCNN-2
+            x1s_avg_pool_input = x1s_conv1_output
+            x2s_avg_pool_input = x2s_conv1_output
+
+        x1s_avg = F.average_pooling_2d(x1s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
+        x2s_avg = F.average_pooling_2d(x2s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
+
+        x1s_all_pool = F.average_pooling_2d(x1s_avg, ksize=(x1s_avg.shape[2], 1))
+        x2s_all_pool = F.average_pooling_2d(x2s_avg, ksize=(x2s_avg.shape[2], 1))
+
+        ex1s_all_pool = F.average_pooling_2d(ex1s, ksize=(ex1s.shape[2], 1))
+        ex2s_all_pool = F.average_pooling_2d(ex2s, ksize=(ex2s.shape[2], 1))
+
+        avg_pool_sim_score = F.squeeze(cos_sim(x1s_all_pool, x2s_all_pool), axis=2)
+        embed_sim_score = F.squeeze(cos_sim(ex1s_all_pool, ex2s_all_pool), axis=2)
+
+        feature_vec = F.concat([avg_pool_sim_score, embed_sim_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         fc = F.squeeze(self.l1(feature_vec), axis=1)
         if self.train:
             return fc
         else:
             return fc, sim_scores
 
+    def get_embeddings(self, xs):
+        exs = self.embed(xs)
+        batchsize, height, width = exs.shape
+        exs = F.reshape(exs, (batchsize, 1, height, width))
+        exs.unchain_backward()  # don't move word vector
+        return exs
 
-    def encode_sequence(self, xs):
-        seq_length = xs.shape[1]
-        # 1. wide_convolution
-        embed_xs = self.embed(xs)
-        batchsize, height, width = embed_xs.shape
-        embed_xs = F.reshape(embed_xs, (batchsize, 1, height, width))
-        embed_xs.unchain_backward()  # don't move word vector
-        xs_conv1 = F.tanh(self.conv1(embed_xs))
+    def build_attention_mat(self, x1s, x2s):
+        lis = [match_score(x1s[:,:,i], x2s[:,:,j]) for i, j in product(range(self.x1s_len), range(self.x2s_len))]
+        attention = F.reshape(F.concat(lis, axis=1), (x1s.shape[0], 1, self.x1s_len, self.x2s_len))
+        return attention
+
+    def wide_convolution(self, xs):
+        xs_conv1 = F.tanh(self.conv1(xs))
         # (batchsize, depth, width, height)
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3)  # (3, 50, 20, 1) --> (3, 1, 20, 50)
-        # 2. average_pooling with window
-        xs_avg = F.average_pooling_2d(xs_conv1_swap, ksize=(4, 1), stride=1, use_cudnn=False)
-        assert xs_avg.shape[2] == seq_length  # average pooling語に系列長が元に戻ってないといけない
-
-        embed_avg = F.average_pooling_2d(embed_xs, ksize=(embed_xs.shape[2], 1))
-        xs_avg_1 = F.average_pooling_2d(xs_avg, ksize=(xs_avg.shape[2], 1))
-        return embed_avg, xs_avg_1
-        # elif self.n_layer == 2:
-        #     xs_conv2 = F.tanh(self.conv2(xs_avg))
-        #     xs_avg_2 = F.average_pooling_2d(xs_conv2, ksize=(xs_conv2.shape[2], 1))
-        #     return embed_avg, xs_avg_1, xs_avg_2
+        return xs_conv1_swap
