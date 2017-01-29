@@ -40,7 +40,7 @@ class DataProcessor(object):
         print("done", flush=True, file=sys.stderr)
 
     def compute_max_length(self):
-        end = 100 if self.test_run else none
+        end = 100 if self.test_run else None
         x1s_len = sorted([len(json.loads(l)['question']) for l in islice(open(self.train_data_path, 'r'), end)], reverse=True)[0]
         x2s_len = sorted([len(json.loads(l)['answer']) for l in islice(open(self.train_data_path, 'r'), end)], reverse=True)[0]
 
