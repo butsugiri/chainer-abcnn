@@ -25,8 +25,6 @@ class DataProcessor(object):
         self.vocab = defaultdict(lambda: len(self.vocab))
         self.vocab["<pad>"]
         self.vocab["<unk>"]
-        # 予測先のconnective tokens
-        # self.connective = defaultdict(lambda: len(self.connective))
 
     def prepare_dataset(self):
         self.compute_max_length()
@@ -40,6 +38,10 @@ class DataProcessor(object):
         print("done", flush=True, file=sys.stderr)
 
     def compute_max_length(self):
+        """
+        Compute maximum length from training dataset.
+        This determines dimension of weight matrix for attention.
+        """
         end = 100 if self.test_run else None
         x1s_len = sorted([len(json.loads(l)['question']) for l in islice(open(self.train_data_path, 'r'), end)], reverse=True)[0]
         x2s_len = sorted([len(json.loads(l)['answer']) for l in islice(open(self.train_data_path, 'r'), end)], reverse=True)[0]
