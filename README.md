@@ -3,6 +3,9 @@ This repository contains re-implementation of `Wenpeng Yin; Hinrich Schütze; Bi
 
 In order to assure that the implementation is correct, this repo reports the result for WikiQA task, which is the task used in the original paper.
 
+# Model Overview
+![](./image/abcnn.png)
+
 # WikiQA result
 ## BCNN Model
 BCNN HyperParameter
