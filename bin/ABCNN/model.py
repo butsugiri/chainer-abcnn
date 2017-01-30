@@ -81,7 +81,7 @@ class ABCNN(Chain):
         ex2s = self.get_embeddings(x2s)
 
         if self.model_type == 'ABCNN1' or self.model_type == 'ABCNN3':
-            attention_mat = F.squeeze(self.build_attention_mat(ex1s, ex2s), axis=1)
+            attention_mat = self.build_attention_mat(ex1s, ex2s)
             identity = self.xp.identity(self.embed_dim, dtype=self.xp.float32)
             if self.single_attention_mat:
                 W0 = W1 = self.W0(identity)
@@ -104,7 +104,7 @@ class ABCNN(Chain):
 
         if self.model_type == 'ABCNN2' or self.model_type == 'ABCNN3': #ABCNN-2
             # build attention matrix from output of wide-convolution
-            attention_mat = F.squeeze(self.build_attention_mat(x1s_conv1_output, x2s_conv1_output), axis=1)
+            attention_mat = self.build_attention_mat(x1s_conv1_output, x2s_conv1_output)
 
             # col-wise sum for x1s
             col_wise_sums = F.sum(attention_mat, axis=2)
@@ -167,8 +167,7 @@ class ABCNN(Chain):
         epsilon = Variable(self.xp.full((batchsize, x1s_len, x2s_len), sys.float_info.epsilon, dtype=np.float32))
         inside_root = F.maximum(inside_root, epsilon)
         denominator = 1.0 + F.sqrt(inside_root)
-        denominator = F.maximum(epsilon, denominator)
-        return F.expand_dims(1.0 / denominator, axis=1)
+        return 1.0 / denominator
 
     def wide_convolution(self, xs):
         xs_conv1 = F.tanh(self.conv1(xs))
