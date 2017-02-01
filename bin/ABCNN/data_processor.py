@@ -11,9 +11,9 @@ from itertools import groupby, islice
 class DataProcessor(object):
 
     def __init__(self, data_path, vocab_path, test_run, max_length):
-        self.train_data_path = os.path.join(data_path, "train.json")
-        self.dev_data_path = os.path.join(data_path, "dev.json")
-        self.test_data_path = os.path.join(data_path, "test.json")
+        self.train_data_path = os.path.join(data_path, "train_rep.json")
+        self.dev_data_path = os.path.join(data_path, "dev_rep.json")
+        self.test_data_path = os.path.join(data_path, "test_rep.json")
         # conventional lexical features pkl used in [Yang+ 2015]
         self.id2features = pickle.load(open("../work/features.pkl", "rb"))
         self.test_run = test_run # if true, use tiny datasets for quick test
