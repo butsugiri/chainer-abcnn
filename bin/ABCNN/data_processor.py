@@ -21,7 +21,8 @@ class DataProcessor(object):
 
         # Vocabulary for sentence pairs
         # word2vec vocabulary: vocab outside this will be considered as <unk>
-        self.word2vec_vocab = {w.strip():1 for w in open(vocab_path, 'r')}
+        # lowercase leads to more initialized vocab in the dataset
+        self.word2vec_vocab = {w.strip().lower():1 for w in open(vocab_path, 'r')}
         self.vocab = defaultdict(lambda: len(self.vocab))
         self.vocab["<pad>"]
         self.vocab["<unk>"]

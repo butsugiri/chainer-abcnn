@@ -7,12 +7,6 @@ import numpy as np
 from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
 from .util import cos_sim, debug_print
-from itertools import product
-
-def match_score(xi, yi):
-    tmp = xi - yi
-    tmp = tmp * tmp
-    return 1 / (1 + F.sqrt(F.sum(tmp, axis=2)))
 
 class ABCNN(Chain):
 
