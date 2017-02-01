@@ -37,6 +37,7 @@ def main(args):
     data_processor.compute_max_length()
     train_data = data_processor.train_data
     dev_data = data_processor.dev_data
+    test_data = data_processor.test_data
 
     # create model
     vocab = data_processor.vocab
@@ -72,7 +73,10 @@ def main(args):
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
     dev_train_iter = chainer.iterators.SerialIterator(
         train_data, args.batchsize, repeat=False)
-    dev_iter = DevIterator(dev_data, data_processor.n_dev)
+    if args.use_test_data:
+        dev_iter = DevIterator(test_data, data_processor.n_dev)
+    else:
+        dev_iter = DevIterator(dev_data, data_processor.n_dev)
 
     x1s_len = np.array([cnn.x1s_len], dtype=np.int32)
     x2s_len = np.array([cnn.x2s_len], dtype=np.int32)
@@ -136,6 +140,9 @@ if __name__ == '__main__':
                         help='Use same matrix for attention')
     parser.add_argument('--model-type', dest="model_type", type=str, default='ABCNN1',
                         help='Model type')
+    parser.add_argument('--use-test-data', dest="use_test_data", action='store_true',
+                        help='Use test data instead of dev data')
+    parser.set_defaults(use_test_data=False)
 
     args = parser.parse_args()
 

@@ -15,7 +15,7 @@ VOCAB = "../work/word2vec_vocab.txt"
 def main():
     # read word2vec vocabs
     with open(VOCAB, 'r') as fi:
-        vocabs = {x.strip():1 for x in fi}
+        vocabs = {x.strip().lower():1 for x in fi}
 
     # collect data vocabs
     files = [TRAIN_PATH, DEV_PATH, TEST_PATH]
