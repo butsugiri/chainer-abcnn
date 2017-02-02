@@ -70,7 +70,7 @@ class ABCNN(Chain):
                     vec = self.xp.array(line.strip().split(" ")[1::], dtype=np.float32)
                     self.embed.W.data[vocab[word]] = vec
         print("done", flush=True, file=sys.stderr)
-        print("{} tokens are initialized by word2vec".format(list(len(initialized_vocab))), flush=True, file=sys.stderr)
+        print("{} tokens are initialized by word2vec".format(len(list(initialized_vocab))), flush=True, file=sys.stderr)
 
     def set_pad_embedding_to_zero(self, vocab):
         self.embed.W.data[vocab["<pad>"]] = self.xp.zeros(self.embed_dim).astype(np.float32)
