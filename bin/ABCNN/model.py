@@ -26,7 +26,8 @@ class ABCNN(Chain):
                 conv1=L.Convolution2D(
                     input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
-                W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len)
+                W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len),
+                bn0=L.BatchNormalization(output_channel)
             )
         else:
         # use different matrix for each side of the model (i.e. x1s and x2s)
@@ -39,7 +40,8 @@ class ABCNN(Chain):
                     input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
                 W0=L.Linear(in_size=embed_dim, out_size=x2s_len),
-                W1=L.Linear(in_size=embed_dim, out_size=x1s_len)
+                W1=L.Linear(in_size=embed_dim, out_size=x1s_len),
+                bn0=L.BatchNormalization(output_channel)
             )
 
     def load_glove_embeddings(self, glove_path, vocab):
@@ -133,9 +135,11 @@ class ABCNN(Chain):
 
         # average pooling from the embedding layer
         # essentially this is equivalent to adding the bag-of-words feature
-        ex1s_all_pool = F.average_pooling_2d(ex1s, ksize=(ex1s.shape[2], 1))
-        ex2s_all_pool = F.average_pooling_2d(ex2s, ksize=(ex2s.shape[2], 1))
-        embed_sim_score = F.squeeze(cos_sim(ex1s_all_pool, ex2s_all_pool), axis=2)
+        # ex1s_all_pool = F.average_pooling_2d(ex1s, ksize=(ex1s.shape[2], 1))
+        # ex2s_all_pool = F.average_pooling_2d(ex2s, ksize=(ex2s.shape[2], 1))
+        ex1s_all_sum = F.expand_dims(F.sum(ex1s, axis=2), axis=1)
+        ex2s_all_sum = F.expand_dims(F.sum(ex2s, axis=2), axis=1)
+        embed_sim_score = F.squeeze(cos_sim(ex1s_all_sum, ex2s_all_sum), axis=2)
 
         feature_vec = F.concat([avg_pool_sim_score, embed_sim_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         fc_out = F.squeeze(self.l1(feature_vec), axis=1)
@@ -170,7 +174,7 @@ class ABCNN(Chain):
         return 1.0 / denominator
 
     def wide_convolution(self, xs):
-        xs_conv1 = F.tanh(self.conv1(xs))
+        xs_conv1 = F.tanh(self.bn0(self.conv1(xs), test=not self.train))
         # (batchsize, depth, width, height)
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3)  # (3, 50, 20, 1) --> (3, 1, 20, 50)
         return xs_conv1_swap
