@@ -21,8 +21,8 @@ class ABCNN(Chain):
         if single_attention_mat:
             self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)
             super(ABCNN, self).__init__(
-                # embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
-                embed=L.EmbedID(n_vocab, embed_dim),
+                embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+                # embed=L.EmbedID(n_vocab, embed_dim),
                 conv1=L.Convolution2D(
                     input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
@@ -33,8 +33,8 @@ class ABCNN(Chain):
             self.x1s_len = x1s_len
             self.x2s_len = x2s_len
             super(ABCNN, self).__init__(
-                # embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
-                embed=L.EmbedID(n_vocab, embed_dim),
+                embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
+                # embed=L.EmbedID(n_vocab, embed_dim),
                 conv1=L.Convolution2D(
                     input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
@@ -63,11 +63,14 @@ class ABCNN(Chain):
                 if n == 0:
                     continue
                 line_list = line.strip().split(" ", 1)
-                word = line_list[0]
+                word = line_list[0].lower()
                 if word in vocab:
                     vec = self.xp.array(line.strip().split(" ")[1::], dtype=np.float32)
                     self.embed.W.data[vocab[word]] = vec
         print("done", flush=True, file=sys.stderr)
+
+    def set_pad_embedding_to_zero(self, vocab):
+        self.embed.W.data[vocab["<pad>"]] = self.xp.zeros(self.embed_dim).astype(np.float32)
 
     def __call__(self, x1s, x2s, wordcnt, wgt_wordcnt, x1s_len, x2s_len):
         batchsize = x1s.shape[0]

@@ -18,7 +18,7 @@ from ABCNN.model import ABCNN
 from ABCNN.updater import ABCNNUpdater
 from ABCNN.classifier import Classifier
 from ABCNN.wikiqa_evaluator import WikiQAEvaluator
-from ABCNN.util import concat_examples, SelectiveWeightDecay
+from ABCNN.util import concat_examples, SelectiveWeightDecay, set_random_seed
 from ABCNN.dev_iterator import DevIterator
 from ABCNN.data_processor import DataProcessor
 
@@ -30,6 +30,10 @@ def main(args):
     abs_dest = os.path.abspath(dest)
     with open(os.path.join(dest, "settings.json"), "w") as fo:
         fo.write(json.dumps(vars(args), sort_keys=True, indent=4))
+        print(json.dumps(vars(args), sort_keys=True, indent=4), file=sys.stderr)
+
+    # good seed
+    set_random_seed(23455)
 
     # load data
     data_processor = DataProcessor(args.data, args.vocab, args.test, args.max_length)
@@ -55,6 +59,7 @@ def main(args):
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     if args.word2vec:
         cnn.load_word2vec_embeddings(args.word2vec_path, data_processor.vocab)
+    cnn.set_pad_embedding_to_zero(data_processor.vocab)
     model = Classifier(cnn, lossfun=sigmoid_cross_entropy,
                          accfun=binary_accuracy)
     if args.gpu >= 0:
@@ -74,7 +79,7 @@ def main(args):
     dev_train_iter = chainer.iterators.SerialIterator(
         train_data, args.batchsize, repeat=False)
     if args.use_test_data:
-        dev_iter = DevIterator(test_data, data_processor.n_dev)
+        dev_iter = DevIterator(test_data, data_processor.n_test)
     else:
         dev_iter = DevIterator(dev_data, data_processor.n_dev)
 
@@ -99,8 +104,8 @@ def main(args):
     trainer.extend(extensions.snapshot_object(
         model, 'model_epoch_{.updater.epoch}',
         trigger=chainer.training.triggers.MaxValueTrigger('validation/main/map')))
-    trainer.extend(extensions.ExponentialShift("lr", 0.5, optimizer=optimizer),
-                   trigger=chainer.training.triggers.MaxValueTrigger("validation/main/map"))
+    # trainer.extend(extensions.ExponentialShift("lr", 0.5, optimizer=optimizer),
+    #                trigger=chainer.training.triggers.MaxValueTrigger("validation/main/map"))
     trainer.run()
 
 if __name__ == '__main__':

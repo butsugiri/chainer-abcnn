@@ -4,6 +4,7 @@ import numpy as np
 import numpy
 import six
 from collections import namedtuple
+import random
 
 import chainer
 from chainer import cuda, Function, Variable, optimizers, serializers, utils
@@ -181,3 +182,9 @@ def compute_map_mrr(label_scores):
 
     Stats = namedtuple("Stats", ["map", "mrr"])
     return Stats(map=np.mean(ap_list), mrr=np.mean(rr_list))
+
+def set_random_seed(seed):
+    # set Python random seed
+    random.seed(seed)
+    # set NumPy random seed
+    np.random.seed(seed)
