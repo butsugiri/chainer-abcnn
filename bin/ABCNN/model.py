@@ -58,7 +58,7 @@ class ABCNN(Chain):
         assert self.embed != None
         print("loading word2vec vector...", end='', flush=True, file=sys.stderr)
         with open(word2vec_path, "r") as fi:
-            count = 0
+            initialized_vocab = set()
             for n, line in enumerate(fi):
                 # 1st line contains stats of word2vec file
                 if n == 0:
@@ -66,11 +66,11 @@ class ABCNN(Chain):
                 line_list = line.strip().split(" ", 1)
                 word = line_list[0].lower()
                 if word in vocab:
-                    count += 1
+                    initialized_vocab.add(word)
                     vec = self.xp.array(line.strip().split(" ")[1::], dtype=np.float32)
                     self.embed.W.data[vocab[word]] = vec
         print("done", flush=True, file=sys.stderr)
-        print("{} tokens are initialized by word2vec".format(count), flush=True, file=sys.stderr)
+        print("{} tokens are initialized by word2vec".format(list(len(initialized_vocab))), flush=True, file=sys.stderr)
 
     def set_pad_embedding_to_zero(self, vocab):
         self.embed.W.data[vocab["<pad>"]] = self.xp.zeros(self.embed_dim).astype(np.float32)
