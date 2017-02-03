@@ -14,11 +14,9 @@ from .util import compute_map_mrr
 
 class WikiQAEvaluator(extensions.Evaluator):
 
-    def __init__(self, iterator, target, device, converter, x1s_len, x2s_len):
+    def __init__(self, iterator, target, device, converter):
         super(WikiQAEvaluator, self).__init__(
             iterator=iterator, target=target, device=device, converter=converter)
-        self.x1s_len = x1s_len
-        self.x2s_len = x2s_len
 
     def collect_prediction_for_train_data(self):
         """
@@ -32,7 +30,7 @@ class WikiQAEvaluator(extensions.Evaluator):
         train_X = []
         train_y = []
         for batch in it:
-            padded_batch = self.converter(batch, device=self.device, x1s_len=self.x1s_len, x2s_len=self.x2s_len)
+            padded_batch = self.converter(batch, device=self.device)
             x1s = padded_batch['x1s']
             x2s = padded_batch['x2s']
             wordcnt = padded_batch['wordcnt']
@@ -76,7 +74,7 @@ class WikiQAEvaluator(extensions.Evaluator):
             for n, batch in enumerate(it):
                 observation = {}
                 with reporter.report_scope(observation):
-                    padded_batch = self.converter(batch, device=self.device, x1s_len=self.x1s_len, x2s_len=self.x2s_len)
+                    padded_batch = self.converter(batch, device=self.device)
                     x1s = padded_batch['x1s']
                     x2s = padded_batch['x2s']
                     wordcnt = padded_batch['wordcnt']

@@ -21,6 +21,7 @@ from ABCNN.wikiqa_evaluator import WikiQAEvaluator
 from ABCNN.util import concat_examples, SelectiveWeightDecay, set_random_seed
 from ABCNN.dev_iterator import DevIterator
 from ABCNN.data_processor import DataProcessor
+import BCNN.util
 
 
 def main(args):
@@ -85,7 +86,7 @@ def main(args):
 
     x1s_len = np.array([cnn.x1s_len], dtype=np.int32)
     x2s_len = np.array([cnn.x2s_len], dtype=np.int32)
-    updater = ABCNNUpdater(train_iter, optimizer, x1s_len=x1s_len, x2s_len=x2s_len, converter=concat_examples, device=args.gpu)
+    updater = ABCNNUpdater(train_iter, optimizer, converter=BCNN.util.concat_examples, device=args.gpu)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=abs_dest)
 
     # setup evaluation
@@ -93,7 +94,7 @@ def main(args):
     eval_predictor.train = False
     iters = {"train": dev_train_iter, "dev": dev_iter}
     trainer.extend(WikiQAEvaluator(
-        iters, eval_predictor, converter=concat_examples, device=args.gpu, x1s_len=x1s_len, x2s_len=x2s_len))
+        iters, eval_predictor, converter=BCNN.util.concat_examples, device=args.gpu))
 
     # extentions...
     trainer.extend(extensions.LogReport())
