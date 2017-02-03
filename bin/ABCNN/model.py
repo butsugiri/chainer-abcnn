@@ -18,7 +18,7 @@ class ABCNN(Chain):
         self.model_type = model_type
         self.output_channel = output_channel
 
-        W, b = create_conv_param()
+        W, b = create_conv_param(output_channel, input_channel, embed_dim, 4)
         # use same matrix for transforming attention matrix
         if single_attention_mat:
             self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)

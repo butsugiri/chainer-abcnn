@@ -199,13 +199,9 @@ def set_random_seed(seed):
     np.random.seed(seed)
 
 
-def create_conv_param():
+def create_conv_param(output_channel, input_channel, embedding, filter_width):
     rng = np.random.RandomState(23455)
-    output_channel = 50
-    input_channel = 1
-    embedding = 300
-    filter_width = 4
-    filter_shape = [output_channel, input_channel, embedding, filter_width]
+    filter_shape = [output_channel, input_channel, filter_width, embedding]
     fan_in = numpy.prod(filter_shape[1:])
     fan_out = filter_shape[0] * numpy.prod(filter_shape[2:])
     # initialize weights with random weights
