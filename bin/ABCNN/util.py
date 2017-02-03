@@ -85,6 +85,7 @@ def _concat_arrays_with_padding(arrays, padding):
             result[(i,) + slices] = src
     return result
 
+
 def _concat_xs(arrays, padding, min_length):
     if padding is not None:
         return _concat_xs_with_padding(arrays, padding, min_length)
@@ -92,6 +93,7 @@ def _concat_xs(arrays, padding, min_length):
     xp = cuda.get_array_module(arrays[0])
     with cuda.get_device(arrays[0]):
         return xp.concatenate([array[None] for array in arrays])
+
 
 def _concat_xs_with_padding(arrays, padding, min_length):
     # shape = numpy.array(arrays[0].shape, dtype=int)
@@ -110,14 +112,16 @@ def _concat_xs_with_padding(arrays, padding, min_length):
             result[(i,) + slices] = src
     return result
 
+
 def cos_sim(x, y):
     """
     Variableを2つ受け取ってcosine類似度を返す関数
     Chainerにはない
     """
-    norm_x = F.normalize(F.squeeze(x, axis=(1,2)))
-    norm_y = F.normalize(F.squeeze(y, axis=(1,2)))
+    norm_x = F.normalize(F.squeeze(x, axis=(1, 2)))
+    norm_y = F.normalize(F.squeeze(y, axis=(1, 2)))
     return F.batch_matmul(norm_x, norm_y, transa=True)
+
 
 def debug_print(v):
     """
@@ -130,6 +134,7 @@ def debug_print(v):
     else:
         print(v.data)
         print(v.shape)
+
 
 class SelectiveWeightDecay(object):
     name = 'SelectiveWeightDecay'
@@ -153,6 +158,7 @@ class SelectiveWeightDecay(object):
                     else:
                         self.kernel()(p, rate, g)
 
+
 def compute_map_mrr(label_scores):
     """
     compute map and mrr
@@ -161,9 +167,10 @@ def compute_map_mrr(label_scores):
     ap_list = []
     rr_list = []
     for label_score in label_scores:
-        sort_order = label_score[:,1].argsort()[::-1]  #sort (label, score) array, following score from the model
-        sorted_labels = label_score[sort_order][:,0]  # split
-        sorted_scores = label_score[sort_order][:,1]  # split
+        # sort (label, score) array, following score from the model
+        sort_order = label_score[:, 1].argsort()[::-1]
+        sorted_labels = label_score[sort_order][:, 0]  # split
+        sorted_scores = label_score[sort_order][:, 1]  # split
 
         # compute map
         precision = 0
@@ -176,15 +183,37 @@ def compute_map_mrr(label_scores):
         ap_list.append(ap)
 
         # compute mrr
-        ranks = [n for n, array in enumerate(label_score[sort_order], start=1) if int(array[0]) == 1]
+        ranks = [n for n, array in enumerate(
+            label_score[sort_order], start=1) if int(array[0]) == 1]
         rr = (1.0 / ranks[0]) if ranks else 0.0
         rr_list.append(rr)
 
     Stats = namedtuple("Stats", ["map", "mrr"])
     return Stats(map=np.mean(ap_list), mrr=np.mean(rr_list))
 
+
 def set_random_seed(seed):
     # set Python random seed
     random.seed(seed)
     # set NumPy random seed
     np.random.seed(seed)
+
+
+def create_conv_param():
+    rng = np.random.RandomState(23455)
+    output_channel = 50
+    input_channel = 1
+    embedding = 300
+    filter_width = 4
+    filter_shape = [output_channel, input_channel, embedding, filter_width]
+    fan_in = numpy.prod(filter_shape[1:])
+    fan_out = filter_shape[0] * numpy.prod(filter_shape[2:])
+    # initialize weights with random weights
+    W_bound = np.sqrt(6. / (fan_in + fan_out))
+    W = np.asarray(
+        rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
+        dtype=np.float32)
+
+    # the bias is a 1D tensor -- one bias per output feature map
+    b=np.zeros((filter_shape[0],), dtype=np.float32)
+    return W, b

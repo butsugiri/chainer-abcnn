@@ -33,9 +33,6 @@ def main(args):
         fo.write(json.dumps(vars(args), sort_keys=True, indent=4))
         print(json.dumps(vars(args), sort_keys=True, indent=4), file=sys.stderr)
 
-    # good seed
-    set_random_seed(23455)
-
     # load data
     data_processor = DataProcessor(args.data, args.vocab, args.test, args.max_length)
     data_processor.prepare_dataset()

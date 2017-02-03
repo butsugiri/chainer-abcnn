@@ -6,7 +6,8 @@ import chainer.links as L
 import numpy as np
 from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
-from .util import cos_sim, debug_print
+from .util import cos_sim, debug_print, create_conv_param
+
 
 class ABCNN(Chain):
 
@@ -17,6 +18,7 @@ class ABCNN(Chain):
         self.model_type = model_type
         self.output_channel = output_channel
 
+        W, b = create_conv_param()
         # use same matrix for transforming attention matrix
         if single_attention_mat:
             self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)
@@ -24,7 +26,7 @@ class ABCNN(Chain):
                 embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
                 # embed=L.EmbedID(n_vocab, embed_dim),
                 conv1=L.Convolution2D(
-                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0), initialW=W, initial_bias=b),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
                 W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len),
                 bn0=L.BatchNormalization(output_channel)
@@ -37,7 +39,7 @@ class ABCNN(Chain):
                 embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
                 # embed=L.EmbedID(n_vocab, embed_dim),
                 conv1=L.Convolution2D(
-                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0), initialW=W, initial_bias=b),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
                 W0=L.Linear(in_size=embed_dim, out_size=x2s_len),
                 W1=L.Linear(in_size=embed_dim, out_size=x1s_len),
