@@ -41,6 +41,8 @@ def main(args):
     dev_data = data_processor.dev_data
     test_data = data_processor.test_data
 
+    set_random_seed(23455)
+
     # create model
     vocab = data_processor.vocab
     embed_dim = args.dim
