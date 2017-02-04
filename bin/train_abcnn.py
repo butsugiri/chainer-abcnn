@@ -41,7 +41,6 @@ def main(args):
     dev_data = data_processor.dev_data
     test_data = data_processor.test_data
 
-    set_random_seed(23455)
 
     # create model
     vocab = data_processor.vocab
@@ -55,16 +54,16 @@ def main(args):
         input_channel = 1
     cnn = ABCNN(n_vocab=len(vocab), embed_dim=embed_dim, input_channel=input_channel,
                output_channel=50, x1s_len=x1s_len, x2s_len=x2s_len, model_type=model_type, single_attention_mat=args.single_attention_mat)  # ABCNNはoutput = 50固定らしいが．
+    model = Classifier(cnn, lossfun=sigmoid_cross_entropy,
+                         accfun=binary_accuracy)
     if args.glove:
         cnn.load_glove_embeddings(args.glove_path, data_processor.vocab)
     if args.word2vec:
         cnn.load_word2vec_embeddings(args.word2vec_path, data_processor.vocab)
-    cnn.set_pad_embedding_to_zero(data_processor.vocab)
-    model = Classifier(cnn, lossfun=sigmoid_cross_entropy,
-                         accfun=binary_accuracy)
     if args.gpu >= 0:
         cuda.get_device(args.gpu).use()
         model.to_gpu()
+    cnn.set_pad_embedding_to_zero(data_processor.vocab)
 
     # setup optimizer
     optimizer = O.AdaGrad(args.lr)
@@ -76,6 +75,7 @@ def main(args):
         rate=args.decay, decay_params=decay_params))
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
+
     dev_train_iter = chainer.iterators.SerialIterator(
         train_data, args.batchsize, repeat=False)
     if args.use_test_data:
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', dest='epoch', type=int,
                         default=5, help='Number of times to iterate through the dataset')
     parser.add_argument('--batchsize', dest='batchsize', type=int,
-                        default=3, help='Minibatch size')
+                        default=32, help='Minibatch size')
     parser.add_argument('--data',  type=str,
                         default='../data/WikiQACorpus', help='Path to input (train/dev/test) data file')
     parser.add_argument('--dim',  type=int,

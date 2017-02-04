@@ -7,6 +7,7 @@ import numpy as np
 from chainer import cuda, Function, Variable, reporter
 from chainer import Link, Chain
 from .util import cos_sim, debug_print, create_conv_param
+np.random.seed(23455)
 
 
 class ABCNN(Chain):
@@ -18,7 +19,6 @@ class ABCNN(Chain):
         self.model_type = model_type
         self.output_channel = output_channel
 
-        W, b = create_conv_param(output_channel, input_channel, embed_dim, 4)
         # use same matrix for transforming attention matrix
         if single_attention_mat:
             self.x1s_len = self.x2s_len = max(x1s_len, x2s_len)
@@ -26,10 +26,10 @@ class ABCNN(Chain):
                 embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
                 # embed=L.EmbedID(n_vocab, embed_dim),
                 conv1=L.Convolution2D(
-                    input_channel, output_channel, (4, embed_dim), pad=(3,0), initialW=W, initial_bias=b),
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
-                W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len),
-                bn0=L.BatchNormalization(output_channel)
+                # W0=L.Linear(in_size=embed_dim, out_size=self.x1s_len),
+                # bn0=L.BatchNormalization(output_channel)
             )
         else:
         # use different matrix for each side of the model (i.e. x1s and x2s)
@@ -39,12 +39,13 @@ class ABCNN(Chain):
                 embed=L.EmbedID(n_vocab, embed_dim, initialW=np.random.uniform(-0.01, 0.01)),  # 100: word-embedding vector size
                 # embed=L.EmbedID(n_vocab, embed_dim),
                 conv1=L.Convolution2D(
-                    input_channel, output_channel, (4, embed_dim), pad=(3,0), initialW=W, initial_bias=b),
+                    input_channel, output_channel, (4, embed_dim), pad=(3,0)),
                 l1=L.Linear(in_size=2+4, out_size=1),  # 4 are from lexical features of WikiQA Task
-                W0=L.Linear(in_size=embed_dim, out_size=x2s_len),
-                W1=L.Linear(in_size=embed_dim, out_size=x1s_len),
-                bn0=L.BatchNormalization(output_channel)
+                # W0=L.Linear(in_size=embed_dim, out_size=x2s_len),
+                # W1=L.Linear(in_size=embed_dim, out_size=x1s_len),
+                # bn0=L.BatchNormalization(output_channel)
             )
+        print(self.l1.W.data)
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
@@ -127,18 +128,20 @@ class ABCNN(Chain):
             x1s_avg_pool_input = x1s_conv1_output
             x2s_avg_pool_input = x2s_conv1_output
 
-        x1s_avg = F.average_pooling_2d(x1s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
-        x2s_avg = F.average_pooling_2d(x2s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
+        # x1s_avg = F.average_pooling_2d(x1s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
+        # x2s_avg = F.average_pooling_2d(x2s_avg_pool_input, ksize=(4, 1), stride=1, use_cudnn=False)
 
         # average pooling from the very top of the model (i.e. block[-1])
-        x1s_all_pool = F.average_pooling_2d(x1s_avg, ksize=(x1s_avg.shape[2], 1))
-        x2s_all_pool = F.average_pooling_2d(x2s_avg, ksize=(x2s_avg.shape[2], 1))
+        x1s_all_pool = F.average_pooling_2d(x1s_avg_pool_input, ksize=(x1s_avg_pool_input.shape[2], 1), use_cudnn=False)
+        x2s_all_pool = F.average_pooling_2d(x2s_avg_pool_input, ksize=(x2s_avg_pool_input.shape[2], 1), use_cudnn=False)
         avg_pool_sim_score = F.squeeze(cos_sim(x1s_all_pool, x2s_all_pool), axis=2)
 
         # average pooling from the embedding layer
         # essentially this is equivalent to adding the bag-of-words feature
         # ex1s_all_pool = F.average_pooling_2d(ex1s, ksize=(ex1s.shape[2], 1))
         # ex2s_all_pool = F.average_pooling_2d(ex2s, ksize=(ex2s.shape[2], 1))
+
+        # The author uses summation instead of average
         ex1s_all_sum = F.expand_dims(F.sum(ex1s, axis=2), axis=1)
         ex2s_all_sum = F.expand_dims(F.sum(ex2s, axis=2), axis=1)
         embed_sim_score = F.squeeze(cos_sim(ex1s_all_sum, ex2s_all_sum), axis=2)
@@ -176,7 +179,7 @@ class ABCNN(Chain):
         return 1.0 / denominator
 
     def wide_convolution(self, xs):
-        xs_conv1 = F.tanh(self.bn0(self.conv1(xs), test=not self.train))
+        xs_conv1 = F.tanh(self.conv1(xs))
         # (batchsize, depth, width, height)
         xs_conv1_swap = F.swapaxes(xs_conv1, 1, 3)  # (3, 50, 20, 1) --> (3, 1, 20, 50)
         return xs_conv1_swap

@@ -65,8 +65,8 @@ class DataProcessor(object):
             for line in islice(input_data, end):
                 data = json.loads(line)
                 y = np.array(data["label"], dtype=np.int32)
-                x1s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["question"]][:self.max_x1s_len], dtype=np.int32)
-                x2s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["answer"] ][:self.max_x2s_len], dtype=np.int32)  # truncate maximum 40 words
+                x1s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["question"]], dtype=np.int32)
+                x2s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["answer"][:40]], dtype=np.int32)  # truncate maximum 40 words
                 x1s_len = np.array([len(x1s)], dtype=np.float32)
                 x2s_len = np.array([len(x2s)], dtype=np.float32)
                 wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wordcnt']], dtype=np.float32)
