@@ -45,7 +45,6 @@ class ABCNN(Chain):
                 # W1=L.Linear(in_size=embed_dim, out_size=x1s_len),
                 # bn0=L.BatchNormalization(output_channel)
             )
-        print(self.l1.W.data)
 
     def load_glove_embeddings(self, glove_path, vocab):
         assert self.embed != None
@@ -146,7 +145,7 @@ class ABCNN(Chain):
         ex2s_all_sum = F.expand_dims(F.sum(ex2s, axis=2), axis=1)
         embed_sim_score = F.squeeze(cos_sim(ex1s_all_sum, ex2s_all_sum), axis=2)
 
-        feature_vec = F.concat([avg_pool_sim_score, embed_sim_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
+        feature_vec = F.concat([embed_sim_score, avg_pool_sim_score, wordcnt, wgt_wordcnt, x1s_len, x2s_len], axis=1)
         fc_out = F.squeeze(self.l1(feature_vec), axis=1)
         if self.train:
             return fc_out

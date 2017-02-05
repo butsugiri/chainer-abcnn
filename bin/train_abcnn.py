@@ -75,6 +75,7 @@ def main(args):
         rate=args.decay, decay_params=decay_params))
 
     train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
+    print(train_iter._order)
 
     dev_train_iter = chainer.iterators.SerialIterator(
         train_data, args.batchsize, repeat=False)

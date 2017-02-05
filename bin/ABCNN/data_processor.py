@@ -11,9 +11,9 @@ from itertools import groupby, islice
 class DataProcessor(object):
 
     def __init__(self, data_path, vocab_path, test_run, max_length):
-        self.train_data_path = os.path.join(data_path, "train_rep.json")
-        self.dev_data_path = os.path.join(data_path, "dev_rep.json")
-        self.test_data_path = os.path.join(data_path, "test_rep.json")
+        self.train_data_path = os.path.join(data_path, "train.json")
+        self.dev_data_path = os.path.join(data_path, "dev.json")
+        self.test_data_path = os.path.join(data_path, "test.json")
         # conventional lexical features pkl used in [Yang+ 2015]
         self.id2features = pickle.load(open("../work/features.pkl", "rb"))
         self.test_run = test_run # if true, use tiny datasets for quick test
@@ -22,7 +22,7 @@ class DataProcessor(object):
         # Vocabulary for sentence pairs
         # word2vec vocabulary: vocab outside this will be considered as <unk>
         # lowercase leads to more initialized vocab in the dataset
-        self.word2vec_vocab = {w.strip().lower():1 for w in open(vocab_path, 'r')}
+        self.word2vec_vocab = {w.strip():1 for w in open(vocab_path, 'r')}
         self.vocab = defaultdict(lambda: len(self.vocab))
         self.vocab["<pad>"]
         self.vocab["<unk>"]
@@ -36,6 +36,7 @@ class DataProcessor(object):
         self.train_data, self.n_train = self.load_dataset("train")
         self.dev_data, self.n_dev = self.load_dataset("dev")
         self.test_data, self.n_test = self.load_dataset("test")
+        print(len(self.vocab))
         print("done", flush=True, file=sys.stderr)
 
     def compute_max_length(self):
@@ -65,10 +66,13 @@ class DataProcessor(object):
             for line in islice(input_data, end):
                 data = json.loads(line)
                 y = np.array(data["label"], dtype=np.int32)
-                x1s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["question"]], dtype=np.int32)
-                x2s = np.array([self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["answer"][:40]], dtype=np.int32)  # truncate maximum 40 words
+                x1s = [self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["question"]]
+                x2s = [self.vocab[token] if token in self.word2vec_vocab else self.vocab["<unk>"] for token in data["answer"]]
+
                 x1s_len = np.array([len(x1s)], dtype=np.float32)
                 x2s_len = np.array([len(x2s)], dtype=np.float32)
+                x1s = np.array(x1s, dtype=np.int32)
+                x2s = np.array(x2s[:40], dtype=np.int32)
                 wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wordcnt']], dtype=np.float32)
                 wgt_wordcnt = np.array([self.id2features[(data['question_id'], data['sentence_id'])]['wgt_wordcnt']], dtype=np.float32)
                 question_ids.append(data['question_id'])
