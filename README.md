@@ -3,6 +3,8 @@ This repository contains re-implementation of `Wenpeng Yin; Hinrich Schütze; Bi
 
 In order to assure that the implementation is correct, this repo reports the result for WikiQA task, which is the task used in the original paper.
 
+@losyer gave me some very nice advice about the implementation (mainly about the model difference between the [actual implementation by the author](https://github.com/yinwenpeng/Answer_Selection) and the description provided on paper.)
+
 # WikiQA result
 ## BCNN
 BCNN HyperParameter
